@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="https://discord.gg/AqNR6p4zrq"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=flat"></a>
+  <a href="mailto:jasper.meijerink@outlook.com?subject=Nib"><img alt="Let's talk" src="https://img.shields.io/badge/Let's%20talk-111111?style=flat"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-AGPL--3.0-3DA639?style=flat"></a>
 </p>
 

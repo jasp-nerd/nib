@@ -72,7 +72,7 @@ final class ResponseBodyView: NSView {
         ])
 
         // Re-colour when the viewport moves. This is the scroll view telling us it scrolled, not a
-        // timer asking whether it did — the distinction the no-polling rule in CLAUDE.md is about.
+        // timer asking whether it did — the distinction the no-polling rule in AGENTS.md is about.
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self,

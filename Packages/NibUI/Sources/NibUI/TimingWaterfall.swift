@@ -46,11 +46,13 @@ struct TimingWaterfall: View {
                 }
 
                 Divider()
-                HStack(spacing: 8) {
+                HStack(spacing: Metrics.row) {
                     Text("Total").frame(width: 90, alignment: .trailing).fontWeight(.semibold)
                     Text(String(format: "%.1f ms", milliseconds(timing.total)))
+                        .contentTransition(.numericText())
                 }
                 .font(.system(.callout, design: .monospaced))
+                .monospacedDigit()
 
                 if !hops.isEmpty {
                     Divider()
@@ -80,12 +82,16 @@ private struct RedirectChain: View {
                         .foregroundStyle(.tertiary)
                         .frame(width: 16, alignment: .trailing)
 
-                    Text("\(hop.status)")
-                        .font(.system(.caption, design: .monospaced).weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(.orange, in: RoundedRectangle(cornerRadius: 4))
+                    // Was hard-coded orange. A hop is not always a 3xx — a 401 in the middle of an
+                    // auth redirect chain is exactly the hop you are looking for, and painting it
+                    // the same colour as the 302s either side of it hides the thing being hunted.
+                    Badge(
+                        text: "\(hop.status)",
+                        prominence: .filled,
+                        tint: StatusStyle.colour(for: hop.status)
+                    )
+                    .accessibilityLabel(
+                        "\(StatusStyle.label(for: hop.status)): \(hop.status)")
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(hop.from.absoluteString)
@@ -129,24 +135,34 @@ private struct PhaseBar: View {
     let fraction: Double
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Metrics.row) {
             Text(name)
                 .frame(width: 90, alignment: .trailing)
                 .foregroundStyle(.secondary)
 
-            RoundedRectangle(cornerRadius: 3)
+            // A capsule, not a 3pt rounded rectangle. At 12pt tall a 3pt radius reads as "someone
+            // rounded the corners a bit"; a capsule reads as a bar, and it is the shape the system
+            // uses for its own progress and slider tracks at this height.
+            Capsule()
                 .fill(.tint)
                 .frame(height: 12)
                 .containerRelativeFrame(.horizontal, alignment: .leading) { width, _ in
                     max(2, width * 0.6 * fraction)
                 }
+                .accessibilityLabel(name)
+                .accessibilityValue(String(format: "%.1f milliseconds", milliseconds))
 
             Spacer(minLength: 0)
 
             Text(String(format: "%.1f ms", milliseconds))
                 .frame(width: 80, alignment: .leading)
                 .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
         }
         .font(.system(.callout, design: .monospaced))
+        .monospacedDigit()
+        // The bars are a chart, and a chart whose values snap is a chart you cannot compare
+        // against the one before it.
+        .animation(.smooth(duration: 0.25), value: fraction)
     }
 }

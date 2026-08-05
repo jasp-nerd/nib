@@ -4,7 +4,7 @@ import SwiftUI
 /// The editable key/value grid, used for headers, query and path parameters, form fields, and
 /// multipart text parts.
 ///
-/// One implementation rather than four. `CLAUDE.md` puts it plainly — if you find yourself writing
+/// One implementation rather than four. `AGENTS.md` puts it plainly — if you find yourself writing
 /// a third slightly-different version of something, stop and reuse the first — and a key/value
 /// table is the single most duplicated widget in every API client. The Postman behaviours everyone
 /// expects live here once: a permanently blank trailing row that materialises when typed into, a

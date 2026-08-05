@@ -105,15 +105,26 @@ public struct RequestPane: View {
             // No `.keyboardShortcut` here: the File menu owns Cmd-Return and Cmd-period. AppKit
             // matches menu key equivalents before the event reaches the view hierarchy, so these
             // would be dead code that drifts out of step with `validateMenuItem`.
+            // The primary action of the whole app, so it gets the primary-action treatment:
+            // prominent, large, capsule. macOS 26 shapes controls by size — rounded rectangle up to
+            // medium, capsule at large and extra large — and stating the shape means Send keeps
+            // matching the system's own large buttons rather than freezing at a radius we picked.
             if session.state.isSending {
                 Button("Cancel") { session.cancel() }
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
             } else {
                 Button("Send") { session.send() }
                     .disabled(!session.canSend)
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
             }
         }
-        .padding(12)
+        .padding(Metrics.pane)
+        // Send and Cancel occupy the same slot, so swapping them is a change of state in one
+        // control rather than one control leaving and another arriving.
+        .animation(.smooth(duration: 0.18), value: session.state.isSending)
     }
 
     /// What the URL becomes once variables are substituted.
@@ -149,32 +160,26 @@ public struct RequestPane: View {
         // variable is never reported twice in two slightly different wordings.
         let pending = session.unresolved.isEmpty ? session.pendingUnresolved : []
 
-        if !session.unresolved.isEmpty || !session.notes.isEmpty || !pending.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
+        // Warnings and notes are two severities, so they are two banners rather than one strip with
+        // mixed-colour rows. A note about `Accept-Encoding` and an unset secret are not the same
+        // kind of news and should not look like it.
+        if !session.unresolved.isEmpty || !pending.isEmpty {
+            Banner(severity: .warning) {
                 if !pending.isEmpty {
-                    Label(
-                        Self.describePending(pending),
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .foregroundStyle(.orange)
+                    Text(Self.describePending(pending))
                 }
                 ForEach(session.unresolved, id: \.self) { item in
-                    Label(
-                        "{{\(item.name)}} — \(Self.describe(item.reason))",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .foregroundStyle(.orange)
-                }
-                ForEach(session.notes, id: \.self) { note in
-                    Label(note, systemImage: "info.circle")
-                        .foregroundStyle(.secondary)
+                    Text("{{\(item.name)}} — \(Self.describe(item.reason))")
                 }
             }
-            .font(.callout)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.quaternary.opacity(0.4))
+        }
+
+        if !session.notes.isEmpty {
+            Banner(severity: .info) {
+                ForEach(session.notes, id: \.self) { note in
+                    Text(note)
+                }
+            }
         }
     }
 

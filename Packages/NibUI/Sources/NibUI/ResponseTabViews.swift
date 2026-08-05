@@ -16,13 +16,11 @@ struct HistoryList: View {
 
     var body: some View {
         if model.history.isEmpty {
-            VStack(spacing: 6) {
-                Text("No history yet").font(.headline)
-                Text("Responses to this request will be listed here, newest first.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ContentUnavailableView(
+                "No history yet",
+                systemImage: "clock.arrow.circlepath",
+                description: Text("Responses to this request will be listed here, newest first.")
+            )
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -44,12 +42,13 @@ struct HistoryRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                Text("\(entry.status)")
-                    .font(.system(.callout, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(colour, in: RoundedRectangle(cornerRadius: 4))
+                Badge(
+                    text: "\(entry.status)",
+                    prominence: .filled,
+                    tint: StatusStyle.colour(for: entry.status)
+                )
+                .accessibilityLabel(
+                    "\(StatusStyle.label(for: entry.status)): \(entry.status)")
 
                 Text(entry.date.formatted(date: .omitted, time: .standard))
                 Text(String(format: "%.0f ms", entry.durationMilliseconds))
@@ -64,6 +63,7 @@ struct HistoryRow: View {
                     .font(.callout)
             }
             .font(.system(.callout, design: .monospaced))
+            .monospacedDigit()
 
             Text(entry.url)
                 .font(.caption)
@@ -79,8 +79,13 @@ struct HistoryRow: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxHeight: 220)
-                .padding(8)
-                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
+                .padding(Metrics.row)
+                // `ConcentricRectangle` rather than a picked radius: this box is nested inside the
+                // pane, which is nested inside the window, and macOS 26 made those outer radii
+                // larger. Concentric corners are derived from the container's curvature, so the
+                // inset box stays visually parallel to the window's corner instead of drifting.
+                .background(.quaternary.opacity(0.3), in: ConcentricRectangle())
+                .transition(.opacity.combined(with: .move(edge: .top)))
 
                 if entry.isBodyTruncated {
                     Text("Preview only — history keeps the first 64 KB.")
@@ -89,17 +94,9 @@ struct HistoryRow: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-    }
-
-    private var colour: Color {
-        switch entry.status {
-        case 200..<300: .green
-        case 300..<400: .orange
-        case 400...: .red
-        default: .secondary
-        }
+        .padding(.horizontal, Metrics.pane)
+        .padding(.vertical, Metrics.chip)
+        .animation(.smooth(duration: 0.2), value: isExpanded)
     }
 }
 
@@ -107,6 +104,18 @@ struct HeaderList: View {
     let headers: [SendPlan.Header]
 
     var body: some View {
+        if headers.isEmpty {
+            ContentUnavailableView(
+                "No headers",
+                systemImage: "list.bullet.rectangle",
+                description: Text("The response came back with none.")
+            )
+        } else {
+            list
+        }
+    }
+
+    private var list: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
@@ -133,13 +142,11 @@ struct CookieList: View {
 
     var body: some View {
         if cookies.isEmpty {
-            VStack(spacing: 6) {
-                Text("No cookies").font(.headline)
-                Text("Nothing in this response set one.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ContentUnavailableView(
+                "No cookies",
+                systemImage: "birthday.cake",
+                description: Text("Nothing in this response set one.")
+            )
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -166,13 +173,9 @@ struct CookieRow: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
             }
-            HStack(spacing: 6) {
+            HStack(spacing: Metrics.chip) {
                 ForEach(attributes, id: \.self) { attribute in
-                    Text(attribute)
-                        .font(.caption)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                    Badge(text: attribute)
                 }
             }
 
@@ -181,14 +184,15 @@ struct CookieRow: View {
                     "Marked Secure but sent over plain HTTP — a browser would discard it.",
                     systemImage: "exclamationmark.triangle"
                 )
+                .symbolRenderingMode(.hierarchical)
                 .font(.caption)
                 .foregroundStyle(.orange)
             }
         }
         .font(.system(.callout, design: .monospaced))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, Metrics.pane)
+        .padding(.vertical, Metrics.chip)
     }
 
     /// Flags first, because "is this Secure and HttpOnly" is the question people open this tab to

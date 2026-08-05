@@ -61,7 +61,7 @@ public final class RequestSession: Identifiable {
     /// publishing every one invalidates the response pane and reformats two byte counts each time.
     ///
     /// This is event-driven throttling, not a polling timer: it compares against the clock on an
-    /// event we already received, so it does not violate the no-timers rule in CLAUDE.md. The
+    /// event we already received, so it does not violate the no-timers rule in AGENTS.md. The
     /// idiomatic alternative would be `AsyncAlgorithms.throttle`, which is a dependency the
     /// bundle-size claim cannot afford for a progress bar.
     private var lastPublishedProgress: (bytes: Int64, at: ContinuousClock.Instant)?

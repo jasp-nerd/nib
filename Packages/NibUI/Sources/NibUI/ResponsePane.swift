@@ -96,16 +96,22 @@ private struct StatusSummary: View {
 
         case .idle:
             if let response = session.response {
-                HStack(spacing: 12) {
+                HStack(spacing: Metrics.pane) {
                     StatusPill(response: response)
-                    Text(response.durationText).foregroundStyle(.secondary)
-                    Text(response.sizeText).foregroundStyle(.secondary)
+                    // Monospaced digits so "9.8 ms" becoming "148.2 ms" does not shove the size and
+                    // the protocol badge sideways, and a numeric-text transition so the number
+                    // rolls to its new value in place instead of being replaced.
+                    Text(response.durationText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text(response.sizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
                     if let proto = response.networkProtocol {
-                        Text(proto)
-                            .font(.caption)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.quaternary, in: Capsule())
+                        Badge(text: proto)
+                            .help("Negotiated protocol")
                     }
                     if !response.hops.isEmpty {
                         Text(
@@ -114,6 +120,7 @@ private struct StatusSummary: View {
                         .foregroundStyle(.secondary)
                     }
                 }
+                .animation(.smooth(duration: 0.2), value: response.id)
             } else {
                 Text("No response yet — press ⌘↩ to send.")
                     .foregroundStyle(.tertiary)
@@ -132,18 +139,17 @@ private struct StatusPill: View {
     let response: ResponseViewModel
 
     var body: some View {
-        Text("\(response.status) \(response.statusText)")
-            .font(.system(.callout, design: .monospaced).weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(colour, in: RoundedRectangle(cornerRadius: 5))
-    }
-
-    private var colour: Color {
-        if response.isSuccess { return .green }
-        if response.isRedirect { return .orange }
-        return response.isError ? .red : .secondary
+        Badge(
+            text: "\(response.status) \(response.statusText)",
+            prominence: .filled,
+            tint: StatusStyle.colour(for: response.status)
+        )
+        // The colour says client-error-versus-server-error faster than the number does, and it is
+        // the one thing a screen reader cannot see. Say it.
+        .accessibilityLabel(
+            "\(StatusStyle.label(for: response.status)): "
+                + "\(response.status) \(response.statusText)"
+        )
     }
 }
 
@@ -190,18 +196,13 @@ private struct TruncationNotice: View {
     let response: ResponseViewModel
 
     var body: some View {
-        Label(
-            "Showing the first "
-                + Int64(ResponseViewModel.displayLimit).formatted(.byteCount(style: .binary))
-                + " of \(response.sizeText). Copy gives you this much too.",
-            systemImage: "info.circle"
-        )
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.quaternary.opacity(0.4))
+        Banner(severity: .info) {
+            Text(
+                "Showing the first "
+                    + Int64(ResponseViewModel.displayLimit).formatted(.byteCount(style: .binary))
+                    + " of \(response.sizeText). Copy gives you this much too."
+            )
+        }
     }
 }
 
@@ -216,23 +217,21 @@ private struct FailureView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            Image(
-                systemName: tlsReason == nil
+        ContentUnavailableView {
+            Label(
+                tlsReason == nil
+                    ? "The request failed" : "The server's certificate was rejected",
+                systemImage: tlsReason == nil
                     ? "exclamationmark.triangle.fill" : "lock.trianglebadge.exclamationmark"
             )
-            .font(.system(size: 28))
+            // Hierarchical keeps the badge on the lock glyph legible at empty-state size; flat
+            // orange turns it into a single silhouette.
+            .symbolRenderingMode(.hierarchical)
             .foregroundStyle(.orange)
-            Text(tlsReason == nil ? "The request failed" : "The server's certificate was rejected")
-                .font(.headline)
+        } description: {
             Text(tlsReason ?? message)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
                 .textSelection(.enabled)
-                .frame(maxWidth: 460)
-                .fixedSize(horizontal: false, vertical: true)
-
+        } actions: {
             if tlsReason != nil {
                 // The reason this panel exists. `-1202` with nothing to click is where people give
                 // up on a client and go back to curl -k.
@@ -240,6 +239,7 @@ private struct FailureView: View {
                     session.retryWithoutTLSVerification()
                 }
                 .buttonStyle(.borderedProminent)
+                .controlSize(.large)
 
                 Text(
                     "Turns verification off for this request only, and saves it with the request "
@@ -252,7 +252,5 @@ private struct FailureView: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(24)
     }
 }

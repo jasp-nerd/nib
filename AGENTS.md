@@ -1,7 +1,12 @@
 # Working in this repo
 
-Machine-facing companion to `docs/architecture.md`. Read that first for the code map; this
-file is the rules.
+The rules that a change has to satisfy, in the form a coding agent can act on. `AGENTS.md` is the
+conventional filename for this; Claude Code, Cursor and others read it automatically.
+
+Nothing here is agent-specific advice. Every rule below is a real constraint on the project, most of
+them enforced by `Tools/check-boundaries.sh` or by CI, and they apply the same whether a person or a
+tool is making the change. `CONTRIBUTING.md` says the same things in prose for humans;
+`docs/architecture.md` explains why.
 
 ## Commands
 

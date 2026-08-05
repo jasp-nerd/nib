@@ -5,7 +5,7 @@ import Foundation
 /// This is what makes "these are your files" real rather than a claim: edit a request in vim, or
 /// `git checkout` a branch, and the sidebar follows.
 ///
-/// **FSEvents, not a timer.** `CLAUDE.md` bans polling timers and `Tools/check-boundaries.sh`
+/// **FSEvents, not a timer.** `AGENTS.md` bans polling timers and `Tools/check-boundaries.sh`
 /// enforces it, because a repeating timer keeps the CPU out of idle and is the single most likely way
 /// this app stops being able to claim 0% idle CPU. FSEvents is push-based: the process sleeps until
 /// the kernel has something to say.

@@ -27,31 +27,48 @@ public struct SidebarView: View {
 
     @ViewBuilder
     private func content(_ collection: NibCore.Collection) -> some View {
-        VStack(spacing: 0) {
-            filterField
+        let matches = filtered(collection.children)
 
-            if !model.diagnostics.isEmpty {
-                DiagnosticsBanner(messages: model.diagnostics)
-            }
-
-            List(selection: Binding($model.selectedRequestID)) {
-                Section(collection.name) {
-                    ForEach(filtered(collection.children), id: \.id) { node in
-                        NodeRow(node: node, model: model)
-                    }
+        List(selection: Binding($model.selectedRequestID)) {
+            Section(collection.name) {
+                ForEach(matches, id: \.id) { node in
+                    NodeRow(node: node, model: model)
                 }
             }
-            .listStyle(.sidebar)
-
-            Divider()
-            footer
         }
+        .listStyle(.sidebar)
+        // Nothing matched is a different state from an empty collection, and saying which is
+        // showing is the only way to tell "my filter is too narrow" from "this folder is empty".
+        .overlay {
+            if matches.isEmpty, !filter.isEmpty {
+                ContentUnavailableView.search(text: filter)
+            }
+        }
+        // `safeAreaBar` rather than a `VStack` row, and this is the macOS 26 part.
+        //
+        // A bar attached this way is chrome, not content: the system gives it the bar material,
+        // keeps it out of the list's scrollable area, and — the reason it is worth changing —
+        // gives the list a scroll edge effect, so rows fade out underneath the filter field
+        // instead of sliding up to a hard divider and stopping. Stacking the field above the list
+        // in a VStack gets none of that, because from SwiftUI's side it is just another row.
+        .safeAreaBar(edge: .top) {
+            // One bar, not two stacked ones: `safeAreaBar` supplies the material, and a second
+            // bar underneath the first would paint one translucent layer over another.
+            VStack(spacing: 0) {
+                if !model.diagnostics.isEmpty {
+                    DiagnosticsBanner(messages: model.diagnostics)
+                }
+                filterField
+            }
+        }
+        .safeAreaBar(edge: .bottom) { footer }
     }
 
     private var filterField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "line.3.horizontal.decrease")
+        PaneBar(horizontal: 10) {
+            Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
             TextField("Filter", text: $filter)
                 .textFieldStyle(.plain)
             if !filter.isEmpty {
@@ -59,14 +76,16 @@ public struct SidebarView: View {
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
                     .foregroundStyle(.secondary)
+                    // The clear button appearing is a state change, not decoration, so it gets a
+                    // transition rather than popping into place.
+                    .transition(.opacity.combined(with: .scale(scale: 0.7)))
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .animation(.smooth(duration: 0.16), value: filter.isEmpty)
     }
 
     private var footer: some View {
-        HStack(spacing: 4) {
+        PaneBar(horizontal: 10) {
             Button("New request", systemImage: "plus") {
                 Task { await model.addRequest() }
             }
@@ -89,14 +108,13 @@ public struct SidebarView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 .buttonStyle(.plain)
                 .help("Reveal \(root.path) in Finder")
             }
         }
         .buttonStyle(.borderless)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
     }
 
     /// Filter the tree, keeping a folder whenever any descendant matches.
@@ -154,25 +172,16 @@ private struct RequestRow: View {
         HStack(spacing: 6) {
             Text(request.spec.method.rawValue)
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Self.colour(for: request.spec.method))
+                .foregroundStyle(MethodStyle.colour(for: request.spec.method))
                 .frame(width: 38, alignment: .leading)
+                // The colour is the only thing distinguishing these at a glance, so the method has
+                // to be spoken as well as shown — colour alone is not an accessible signal.
+                .accessibilityLabel("\(request.spec.method.rawValue) request")
             Text(request.name)
                 .lineLimit(1)
         }
         .tag(request.id)
         .contextMenu { NodeMenu(id: request.id, model: model) }
-    }
-
-    /// Method colours follow the convention every API client uses, so the sidebar is scannable
-    /// without reading the text.
-    private static func colour(for method: HTTPMethod) -> Color {
-        switch method {
-        case .get: .blue
-        case .post: .green
-        case .put, .patch: .orange
-        case .delete: .red
-        default: .secondary
-        }
     }
 }
 
@@ -189,29 +198,31 @@ private struct NodeMenu: View {
 
 // MARK: - Empty and diagnostic states
 
+/// The first screen anyone sees.
+///
+/// `ContentUnavailableView` rather than a hand-built stack of `Image`/`Text`/`Button`. It is the
+/// system's empty state, which means it gets the platform's icon size, its type scale, its spacing
+/// and its centring for free — and, more to the point, it keeps getting them when the platform
+/// changes its mind, which is precisely what happened between macOS 15 and 26.
 private struct EmptyCollectionView: View {
     var model: CollectionModel
 
     var body: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            Image(systemName: "folder")
-                .font(.system(size: 30))
-                .foregroundStyle(.tertiary)
-            Text("No collection open")
-                .font(.headline)
+        ContentUnavailableView {
+            Label("No collection open", systemImage: "folder")
+        } description: {
             Text(
                 "Nib keeps requests as files in a folder you choose, so you can diff and commit them."
             )
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-
+        } actions: {
             Button("Open Folder…") {
                 Task { await model.promptToOpen() }
             }
             .buttonStyle(.borderedProminent)
+            // macOS 26 grew an extra control size and made the existing ones taller. A primary
+            // action in an empty state is the canonical place for `.large`, and asking for it by
+            // name means the button tracks the system's metrics instead of the previous OS's.
+            .controlSize(.large)
 
             // The migration hook, on the first screen anyone sees. Someone arriving from Postman
             // should not have to find this in a menu -- it is the reason they downloaded the app.
@@ -229,26 +240,30 @@ private struct EmptyCollectionView: View {
                     .textSelection(.enabled)
             }
 
-            let recents = CollectionModel.recentCollections()
-            if !recents.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Recent")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    ForEach(recents, id: \.self) { url in
-                        Button(url.lastPathComponent) {
-                            Task { await model.open(url) }
-                        }
-                        .buttonStyle(.link)
-                        .help(url.path)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            Spacer()
+            recents
         }
-        .padding(18)
+        .padding(.horizontal, Metrics.pane)
+    }
+
+    @ViewBuilder
+    private var recents: some View {
+        let urls = CollectionModel.recentCollections()
+        if !urls.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Recent")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(urls, id: \.self) { url in
+                    Button(url.lastPathComponent) {
+                        Task { await model.open(url) }
+                    }
+                    .buttonStyle(.link)
+                    .help(url.path)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, Metrics.row)
+        }
     }
 }
 
@@ -256,6 +271,9 @@ private struct EmptyCollectionView: View {
 ///
 /// Shown rather than logged: a request that failed to parse is exactly the thing a user needs to know
 /// about, and it is invisible otherwise because the sidebar just looks one row shorter.
+///
+/// Draws no background of its own — it is hosted inside the sidebar's `safeAreaBar`, which already
+/// supplies the material. See `Banner` for the version that stands alone in content flow.
 private struct DiagnosticsBanner: View {
     let messages: [String]
 
@@ -263,6 +281,7 @@ private struct DiagnosticsBanner: View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(messages, id: \.self) { message in
                 Label(message, systemImage: "exclamationmark.triangle")
+                    .symbolRenderingMode(.hierarchical)
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .lineLimit(3)
@@ -270,7 +289,6 @@ private struct DiagnosticsBanner: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.quaternary.opacity(0.4))
+        .padding(.vertical, Metrics.chip)
     }
 }

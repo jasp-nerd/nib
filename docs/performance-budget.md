@@ -3,19 +3,22 @@
 The README's numbers are the pitch, so they get build-time guards rather than periodic manual
 checks. Nothing goes in the README until it is measured here.
 
-## Current: end of Phase 1
+## Where it stands
 
-The working app — method picker, URL field, header table, body editor, response with status,
-headers and a timing waterfall. Release build, `-Osize`, dead-stripped, `strip -x`, ad-hoc signed.
-macOS 26.5, M-series, Swift 6.3.3.
+The shipping app. Release build, `-Osize`, dead-stripped, `strip -x`. macOS 26.5, Apple silicon,
+Swift 6.3.3.
 
 | Metric | Measured | Budget | Verdict |
 |---|---|---|---|
-| Bundle on disk | **728 KB** | 5.0 MB | 14% of budget |
-| Launch: `main()` → first frame | **179 ms** (median, n=7) | 400 ms | 45% of budget |
-| Idle physical footprint | **28 MB** | 35 MB | 80% of budget |
-| Idle CPU, 10 s | **0.0%** | 0.0% | ok |
+| Bundle on disk | **1684 KB** | 5.0 MB | 33% of budget |
+| Launch: `main()` → first frame | **~200 ms** (median of three runs of seven) | 400 ms | 50% of budget |
+| Idle physical footprint | **30 MB** | 35 MB | 86% of budget |
+| Idle CPU | **0.0%** | 0.0% | ok |
 | Embedded frameworks | **0** | 0 | ok |
+| Third-party dependencies | **0** | 0 | ok |
+
+Reproduce with `make size`, `make measure` and `make memory`. Launch timing is noisy enough that a
+single run is not worth quoting — see the note on cold starts below.
 
 ### Measure memory with `footprint`, never `ps -o rss=`
 
@@ -46,10 +49,11 @@ The next tier — ≤60 MB with 2000 requests and a 5 MB response loaded — has
 
 ### Cost of the UI
 
-Phase 0's placeholder shell measured 134 ms and 448 KB. The real UI added **~45 ms and ~190 KB**.
-Worth knowing which change spent it, which is the entire reason for measuring from the first commit.
+An empty AppKit shell with three placeholder panes measured 134 ms and 448 KB. Everything the app
+actually does therefore costs about **1.2 MB and 65 ms** on top of a window that does nothing.
+Knowing which change spends it is the whole reason for measuring from the first commit.
 
-## Phase 0 baseline (for comparison)
+## An empty window, for comparison
 
 The AppKit shell with three placeholder SwiftUI panes.
 
@@ -106,7 +110,7 @@ So ~123 ms is a floor for our own code, and the real user-perceived number is so
 Both are far inside budget, and the point of measuring now is to know which future commit
 moves it.
 
-## Two measurement bugs worth remembering
+## Two ways to measure this wrongly
 
 Both of these produced a plausible-looking wrong answer, which is the dangerous kind.
 
@@ -125,7 +129,7 @@ There was also an ordering bug: `onFirstFrame` was assigned *after* `showWindow(
 notification can fire synchronously inside `showWindow`, so the callback was nil when it fired
 and the latch then suppressed every later attempt.
 
-## Memory while holding a large response (Phase 6)
+## Memory while holding a large response
 
 Measured with `NIB_SELFTEST_HOLD`, which keeps the app alive after a self-test so it can be weighed
 while it is actually holding something rather than while it is empty.
@@ -139,7 +143,7 @@ Fetching an **8.2 MB** JSON response, three consecutive runs:
 
 Against a budget of 60 MB written for a *5 MB* response, so this is a payload 64% larger than the
 budgeted scenario sitting roughly on the line — comfortable, but not a lot of headroom, and worth
-re-measuring rather than assuming when Phase 7 adds response history.
+re-measuring rather than assuming when a later release adds response history.
 
 Where it goes: the display copy is capped at 1 MB (`ResponseViewModel.displayLimit`), and above
 8 MB the payload spills to a file and is memory-mapped rather than held. What remains is the
@@ -148,20 +152,20 @@ displayed megabyte, its hard-wrapped copy, and TextKit's UTF-16 storage for the 
 Highlighting contributes nothing to the resting figure by design: colour is applied with
 `setRenderingAttributes`, which is not stored per character, and only over the viewport.
 
-## Remaining budgets (not yet measurable)
+## Budgets not yet enforced
 
-These need the subsystems that own them, and get enforced as each phase lands.
+Each becomes a gate once there is something to measure it against.
 
 | Metric | Budget | Lands in |
 |---|---|---|
-| Idle RSS, empty | ≤ 35 MB | Phase 1 |
-| Idle CPU over 60 s | 0.0% | Phase 3 (structurally backed by the CI timer ban) |
-| Load 2000 requests from disk | ≤ 150 ms | Phase 3 |
-| Postman import, 5 MB collection | ≤ 1.5 s | Phase 4 |
-| Send → first byte, our overhead only | ≤ 5 ms | Phase 1 |
-| 5 MB JSON response → painted | ≤ 250 ms | Phase 6 |
-| Scrolling a 20 MB body | 60 fps | Phase 6 |
-| Keystroke → paint in URL field | ≤ 8 ms | Phase 1 |
+| Idle RSS, empty | ≤ 35 MB | |
+| Idle CPU over 60 s | 0.0% | the store (structurally backed by the CI timer ban) |
+| Load 2000 requests from disk | ≤ 150 ms | |
+| Postman import, 5 MB collection | ≤ 1.5 s | |
+| Send → first byte, our overhead only | ≤ 5 ms | |
+| 5 MB JSON response → painted | ≤ 250 ms | |
+| Scrolling a 20 MB body | 60 fps | |
+| Keystroke → paint in URL field | ≤ 8 ms | |
 
 ## Gates
 

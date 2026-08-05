@@ -84,24 +84,8 @@ the collection folder — so this can be revisited without restructuring anythin
 Hardened runtime is currently **off**, since it is only required for notarization. Turning it on is
 step one of mitigation 1 above.
 
-## Where the website is served from
+## The website
 
-`https://nib.jaspnerd.dev`, from a plain `nginx:alpine` container on the Hetzner VPS, behind the
-Traefik proxy that Coolify already runs there. TLS is a Let's Encrypt certificate that Traefik
-obtains and renews on its own.
-
-GitHub Pages was the original plan and would have been the lower-maintenance choice, but it needed a
-CNAME record at Porkbun to override the existing `*.jaspnerd.dev` wildcard, and that wildcard
-already points at the VPS. Serving it from the VPS meant no registrar change at all. If that
-tradeoff ever stops being worth it, moving to Pages is one DNS record plus restoring
-`website/CNAME`.
-
-The container is a plain `docker run` rather than a Coolify application, so it will not appear in
-the Coolify dashboard. It mounts `/opt/nib-website/public` read-only, which is why deploying is only
-a file copy:
-
-```sh
-./Tools/deploy-website.sh
-```
-
-To remove it entirely: `docker rm -f nib-website && rm -rf /opt/nib-website`.
+Deployed by `Tools/deploy-website.sh`, which copies `website/` to whatever host `NIB_WEB_HOST`
+points at. The site is static with no build step, so publishing it is a file copy and there is
+nothing to restart.

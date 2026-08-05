@@ -1,5 +1,6 @@
 import AppKit
 import NibUI
+import Observation
 import SwiftUI  // NSHostingController lives here, not in AppKit.
 
 /// The main window: sidebar on the left, request over response on the right.
@@ -27,6 +28,11 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     /// someone rearranges the panes and then quietly does nothing.
     private(set) var responseController: ResponsePaneController?
 
+    /// The toolbar's delegate. `NSWindow.toolbar` holds the toolbar; nothing holds the delegate,
+    /// which is `weak` on `NSToolbar`, so without this the items stop being vended after the
+    /// initialiser returns and the toolbar comes up empty.
+    private var toolbarDelegate: MainToolbar?
+
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
@@ -52,6 +58,14 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         }
         window.contentViewController = root
 
+        // Assigned after `contentViewController`, because the tracking separator needs the split
+        // view that the root controller only has once its view is loaded.
+        let toolbarDelegate = MainToolbar(splitView: root.splitView)
+        self.toolbarDelegate = toolbarDelegate
+        window.toolbar = toolbarDelegate.makeToolbar()
+
+        observeCollection()
+
         // Order matters here, and getting it wrong is how the window ends up either the size of a
         // postage stamp or taller than the display:
         //
@@ -74,6 +88,48 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
 
     private static let defaultContentSize = NSSize(width: 1100, height: 720)
     private static let frameAutosaveName = "NibMainWindow"
+
+    // MARK: - Title
+
+    /// Keep the titlebar saying which collection is open.
+    ///
+    /// A title/subtitle pair rather than a title alone: it is the standard macOS way to say "this
+    /// window, from that place", it survives the toolbar collapsing on a narrow window, and it puts
+    /// the folder path in the window's proxy-icon-shaped slot, which is where someone looking for
+    /// "where did this actually come from" looks first.
+    ///
+    /// `withObservationTracking` rather than a Combine subscription or a poll — same pattern as
+    /// `ResponsePaneController`, and for the same reason: `onChange` fires once, before the change
+    /// lands, so the callback has to hop to the next main-actor turn and re-arm. Not re-arming
+    /// gives you a title that updates exactly once.
+    private func observeCollection() {
+        withObservationTracking {
+            _ = model.collectionModel.rootURL
+            _ = model.collectionModel.collection?.name
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                updateTitle()
+                observeCollection()
+            }
+        }
+        updateTitle()
+    }
+
+    private func updateTitle() {
+        guard let window else { return }
+
+        guard let root = model.collectionModel.rootURL else {
+            window.title = "Nib"
+            window.subtitle = ""
+            return
+        }
+
+        window.title = model.collectionModel.collection?.name ?? root.lastPathComponent
+        // Abbreviated, so a collection under the home directory reads `~/Code/api` rather than
+        // eating the whole titlebar with `/Users/…`.
+        window.subtitle = (root.path as NSString).abbreviatingWithTildeInPath
+    }
 
     /// Put the request/response divider at roughly 40% on first run.
     ///
@@ -142,6 +198,16 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         sidebar.minimumThickness = 220
         sidebar.maximumThickness = 420
         sidebar.canCollapse = true
+        // The sidebar runs the full height of the window, up behind the titlebar, which is what
+        // makes it read as a floating glass pane rather than a panel bolted below the toolbar.
+        // This is the default on macOS 26, but it is stated because the window also sets
+        // `fullSizeContentView`, and the two together are what produce the effect — leaving it
+        // implicit means a later change to the style mask silently undoes it.
+        sidebar.allowsFullHeightLayout = true
+        // No hairline under the titlebar on the sidebar side. The scroll edge effect is what
+        // separates the toolbar from the list now, and a line as well as a fade is one separator
+        // too many.
+        sidebar.titlebarSeparatorStyle = .none
 
         // The request/response pair is its own vertical split so the View menu's
         // "Toggle Split Orientation" can flip it without disturbing the sidebar.

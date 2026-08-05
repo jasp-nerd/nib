@@ -53,13 +53,17 @@ public struct CommandPalette: View {
         let results = matches
 
         if results.isEmpty {
-            VStack(spacing: 6) {
-                Spacer()
-                Text(query.isEmpty ? "No requests yet" : "No match for “\(query)”")
-                    .foregroundStyle(.secondary)
-                Spacer()
+            // `.search(text:)` is the system's own "no results for X" state, wording and all, so
+            // the palette says what Spotlight and Finder say instead of inventing a phrasing.
+            if query.isEmpty {
+                ContentUnavailableView(
+                    "No requests yet",
+                    systemImage: "text.magnifyingglass",
+                    description: Text("Open a collection and this lists everything in it.")
+                )
+            } else {
+                ContentUnavailableView.search(text: query)
             }
-            .frame(maxWidth: .infinity)
         } else {
             ScrollViewReader { proxy in
                 List(Array(results.enumerated()), id: \.element.id) { index, match in
@@ -125,10 +129,13 @@ private struct PaletteRow: View {
             Spacer()
         }
         .padding(.vertical, 3)
-        .padding(.horizontal, 6)
+        .padding(.horizontal, Metrics.chip)
+        // `.tint` rather than `Color.accentColor`: it resolves against whatever tint the view
+        // hierarchy is carrying, so a highlighted row follows the window's accent instead of
+        // pinning itself to the app-wide one.
         .background(
-            isHighlighted ? Color.accentColor.opacity(0.22) : .clear,
-            in: RoundedRectangle(cornerRadius: 5))
+            isHighlighted ? AnyShapeStyle(.tint.opacity(0.22)) : AnyShapeStyle(.clear),
+            in: ConcentricRectangle())
     }
 
     /// Bold the bytes that matched, so it is obvious *why* a result is in the list.

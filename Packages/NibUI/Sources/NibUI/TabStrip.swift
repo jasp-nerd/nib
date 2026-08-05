@@ -30,11 +30,17 @@ struct TabStrip: View {
             Button("New tab", systemImage: "plus") { model.newTab() }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, Metrics.row)
                 .help("New tab (⌘T)")
         }
         .frame(height: 30)
-        .background(.quaternary.opacity(0.25))
+        // `.bar`, not `.quaternary.opacity(0.25)`.
+        //
+        // This strip is chrome, and adopting the new design is mostly a matter of deleting the
+        // backgrounds we painted ourselves so the system can supply its own. A fixed-opacity grey
+        // also ignores Reduce Transparency and Increase Contrast; `.bar` honours both, and it is
+        // the same material as the toolbar directly above it, so the two now read as one layer.
+        .background(.bar)
     }
 }
 
@@ -49,9 +55,13 @@ private struct TabButton: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            // Same colour coding as the sidebar. It was grey here, which meant the one place you
+            // scan to answer "which of my open tabs is the DELETE" was the one place that would
+            // not tell you.
             Text(tab.spec.method.rawValue)
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MethodStyle.colour(for: tab.spec.method))
+                .accessibilityLabel("\(tab.spec.method.rawValue) request")
 
             Text(title)
                 .lineLimit(1)
@@ -81,6 +91,12 @@ private struct TabButton: View {
         .onTapGesture(perform: select)
         .onHover { isHovered = $0 }
         .help(tab.spec.url.isEmpty ? "New request" : tab.spec.url)
+        // The close button materialising on hover was an instant swap, which at 30pt tall reads as
+        // a flicker rather than an affordance appearing.
+        .animation(.smooth(duration: 0.14), value: isHovered)
+        .animation(.smooth(duration: 0.14), value: isActive)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isActive ? [.isSelected, .isButton] : .isButton)
     }
 
     /// The last path component, falling back to the host, falling back to "New request".
