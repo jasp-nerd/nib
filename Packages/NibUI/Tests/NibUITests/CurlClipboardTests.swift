@@ -62,14 +62,15 @@ struct CurlClipboardTests {
     }
 
     @Test("pasting a piped command explains the refusal in plain language")
-    func pastePipedCommand() {
+    func pastePipedCommand() throws {
         setClipboard("curl https://api.example.com/users | jq '.[] | .name'")
 
         let model = AppModel()
-        let failure = model.pasteCurlFromClipboard()
-        let message = try? #require(failure)
-        #expect(message?.contains("pipes") == true)
-        #expect(message?.contains("curl part") == true)
+        // `try #require`, not `try? #require`: swallowing the failure turns "there was no message
+        // at all" into two silently-skipped expectations and a green test.
+        let message = try #require(model.pasteCurlFromClipboard())
+        #expect(message.contains("pipes"))
+        #expect(message.contains("curl part"))
     }
 
     @Test("import diagnostics land in the request's notes where the user can see them")
