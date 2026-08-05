@@ -102,7 +102,3 @@ That list lives in [CONTRIBUTING.md](CONTRIBUTING.md) along with the rest. Brief
 ## Licence
 
 AGPL-3.0, in [LICENSE](LICENSE). Contributions come in under the [CLA](CLA.md), which exists so the licence can still be changed later if it ever needs to be. What it can't do is take your contribution private.
-
----
-
-About those Postman numbers: they come from `du -sk` on Postman 12.22.3 downloaded from postman.com, with the Chromium version read out of its Electron framework. Nib's own numbers come from `make size`, `make measure` and `make memory` against the Release build, and CI checks them on every pull request. There's no memory comparison because Postman wouldn't launch on the machine we tried it on, and a number nobody measured isn't worth printing.
