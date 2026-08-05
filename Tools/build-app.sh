@@ -11,8 +11,8 @@
 #
 # Ad-hoc signing (`codesign -s -`) is deliberate for local builds: it needs no keychain and
 # therefore never blocks on a GUI password prompt. It is fine here because Nib requests zero
-# TCC permissions, so there is no grant for a changing signature to invalidate. Release builds
-# use the persistent identity from docs/signing.md.
+# TCC permissions, so there is no grant for a changing signature to invalidate. A release picks up
+# the persistent identity automatically if Tools/selfsign.sh has been run on this machine.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -58,8 +58,22 @@ if [ "$CONFIG" = "release" ]; then
     strip -x "$CONTENTS/MacOS/Nib"
 fi
 
-echo "==> signing (ad-hoc)"
-codesign --force --sign - --timestamp=none "$APP" 2>&1 | sed 's/^/    /'
+# A release signs with the persistent identity when it is on the machine, and falls back to
+# ad-hoc when it is not, so a fresh clone still builds with an empty keychain.
+#
+# The difference matters more than it looks. An ad-hoc signature is regenerated from scratch every
+# build, so macOS treats each release as a different program: the Keychain access control we rely
+# on for environment secrets is bound to the signature, and it breaks on every upgrade. A stable
+# self-signed identity fixes that and costs nothing. This is also what Tinycast ships with, for the
+# same reason. See Tools/selfsign.sh and docs/signing.md.
+IDENTITY="Nib Self-Signed"
+if [ "$CONFIG" = "release" ] && security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
+    echo "==> signing ($IDENTITY)"
+    codesign --force --sign "$IDENTITY" --timestamp=none "$APP" 2>&1 | sed 's/^/    /'
+else
+    echo "==> signing (ad-hoc)"
+    codesign --force --sign - --timestamp=none "$APP" 2>&1 | sed 's/^/    /'
+fi
 
 # Validate rather than assume. A bundle that fails verification launches with a Gatekeeper
 # dialog, and finding that out at launch time is worse than finding it out here.

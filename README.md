@@ -36,10 +36,13 @@ For a sense of scale, Postman 12.22.3 for Apple silicon is 353 MB installed, and
 ## Install
 
 ```sh
-brew install nib-app/tap/nib
+brew trust --tap nib-app/nib
+brew install --cask nib-app/nib/nib
 ```
 
-That's the whole thing. The tap clears the quarantine flag while it installs, so Nib opens normally afterwards.
+The first line is not optional. Homebrew 6 refuses to load a third-party tap until you say you trust it, and without it the second line fails rather than installing anything.
+
+That's the whole thing after that. The tap clears the quarantine flag while it installs, so Nib opens normally afterwards, and it does the same on every update.
 
 Without Homebrew, download `Nib.zip` from the releases page and drag Nib into Applications. macOS will block it the first time you open it, because Nib is signed but not notarized by Apple. Two ways past that, whichever you prefer:
 

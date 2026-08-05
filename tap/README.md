@@ -5,9 +5,14 @@ here so they are reviewed alongside the code that produces the artefacts they po
 release workflow has something to `sed`.
 
 ```sh
-brew install nib-app/tap/nib           # the cask. This is the one to tell users about.
-brew install nib-app/tap/nib --formula # builds from source
+brew trust --tap nib-app/nib             # Homebrew 6 requires this for any third-party tap
+brew install --cask nib-app/nib/nib      # the cask. This is the one to tell users about.
+brew install --formula nib-app/nib/nib   # builds from source
 ```
+
+The tap repository must be named **`homebrew-nib`** for `nib-app/nib` to resolve. Homebrew strips
+the `homebrew-` prefix, which is why Tinycast's `abue-ammar/homebrew-tinycast` is tapped as
+`abue-ammar/tinycast`.
 
 **The formula is not a user-facing install option.** It declares `depends_on xcode: ["26.0", :build]`,
 so Homebrew refuses to run it unless full Xcode is already installed, and that is a 15 GB download.
@@ -21,7 +26,7 @@ quarantine attribute in the first place. Keep it out of the README install secti
 
 Publishing:
 
-1. Create `nib-app/homebrew-tap` on GitHub.
+1. Create `nib-app/homebrew-nib` on GitHub.
 2. Copy `Casks/` and `Formula/` into it.
 3. Add a `TAP_TOKEN` secret to this repository — a fine-grained PAT with contents:write on the tap.
 
