@@ -13,6 +13,8 @@ public final class RequestSession: Identifiable {
 
     public var spec: HTTPRequestSpec
     public var scope: VariableScope
+    /// Auth inherited from the enclosing folder or collection, used when `spec.auth` is `.inherit`.
+    public var inheritedAuth: AuthSpec = .none
 
     /// Set while a request is in flight so the UI can show progress and offer cancel.
     public private(set) var state: State = .idle
@@ -80,7 +82,8 @@ public final class RequestSession: Identifiable {
 
         let built: SendPlanBuilder.Output
         do {
-            built = try SendPlanBuilder.build(spec, scope: scope)
+            built = try SendPlanBuilder.build(
+                spec, scope: scope, inheritedAuth: inheritedAuth)
         } catch {
             state = .failed(Self.describe(error))
             return

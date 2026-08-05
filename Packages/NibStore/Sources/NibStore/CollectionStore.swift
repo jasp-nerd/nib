@@ -36,6 +36,16 @@ public actor CollectionStore {
         public var environments: [NibCore.Environment]
         /// Things we skipped or adjusted. Surfaced, never swallowed.
         public var diagnostics: [String]
+
+        public init(
+            collection: NibCore.Collection,
+            environments: [NibCore.Environment] = [],
+            diagnostics: [String] = []
+        ) {
+            self.collection = collection
+            self.environments = environments
+            self.diagnostics = diagnostics
+        }
     }
 
     // MARK: - Saving

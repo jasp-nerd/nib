@@ -46,7 +46,17 @@ enum MainMenu {
         add(menu, "Open Collection…", nil, key: "o", enabled: false)
         add(menu, "Import…", nil, key: "I", modifiers: [.command, .shift], enabled: false)
         menu.addItem(.separator())
-        add(menu, "Save", nil, key: "s", enabled: false)
+        add(
+            menu, "Open Collection Folder…", #selector(AppDelegate.openCollection(_:)), key: "o",
+            target: target)
+        add(
+            menu, "Close Collection", #selector(AppDelegate.closeCollection(_:)), key: "w",
+            modifiers: [.command, .shift], target: target)
+        menu.addItem(.separator())
+        add(menu, "Save", #selector(AppDelegate.saveRequest(_:)), key: "s", target: target)
+        add(
+            menu, "Go to Request…", #selector(AppDelegate.showPalette(_:)), key: "k",
+            target: target)
         menu.addItem(.separator())
         add(
             menu, "Send Request", #selector(AppDelegate.sendRequest(_:)), key: "\r",

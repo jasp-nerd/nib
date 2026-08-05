@@ -132,11 +132,14 @@ public final class FolderWatcher: @unchecked Sendable {
         // reference while that callback is about to run, which is a use-after-free. Hopping onto the
         // serial queue orders the release behind any pending delivery.
         //
-        // Deliberately captures the opaque pointer, not `self`: this runs from `deinit`, where
-        // capturing `self` in an escaping closure is not allowed.
-        let info = Unmanaged.passUnretained(self).toOpaque()
+        // Deliberately captures the pointer's bit pattern, not `self`: this runs from `deinit`,
+        // where capturing `self` in an escaping closure is not allowed. A `UInt` rather than the
+        // pointer itself because `UnsafeMutableRawPointer` is not `Sendable`, and reconstructing it
+        // inside the closure is exactly as safe while keeping the concurrency checker satisfied.
+        let address = UInt(bitPattern: Unmanaged.passUnretained(self).toOpaque())
         queue.async {
-            Unmanaged<FolderWatcher>.fromOpaque(info).release()
+            guard let pointer = UnsafeMutableRawPointer(bitPattern: address) else { return }
+            Unmanaged<FolderWatcher>.fromOpaque(pointer).release()
         }
     }
 

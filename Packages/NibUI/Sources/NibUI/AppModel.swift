@@ -13,6 +13,10 @@ import Observation
 public final class AppModel {
     public let engine: HTTPEngine
     public var session: RequestSession
+    public let collectionModel = CollectionModel()
+
+    /// Whether the Cmd-K switcher is showing.
+    public var isPalettePresented = false
 
     public init() {
         let engine = HTTPEngine()
@@ -22,6 +26,42 @@ public final class AppModel {
             scope: VariableScope(),
             engine: engine
         )
+    }
+
+    // MARK: - Collection
+
+    /// Which request the session currently holds, so a redundant load can be skipped.
+    private var loadedRequestID: NodeID?
+
+    /// Load the selected request into the editing session.
+    ///
+    /// The session is edited in place rather than replaced, because the panes captured the object once
+    /// -- replacing it would leave them showing the old one.
+    ///
+    /// Idempotent, and that is load-bearing rather than tidiness. `SidebarContent` calls this from an
+    /// `onChange`, so SwiftUI can deliver it a moment *after* something else has already loaded the
+    /// same request and started a send -- and `replace(with:)` calls `cancel()`, which would kill the
+    /// in-flight request and blank the response. Symptom: a request that fires and silently produces
+    /// nothing. Comparing the id first makes the redundant call free.
+    public func loadSelectedRequest() {
+        guard let request = collectionModel.selectedRequest else { return }
+        guard request.id != loadedRequestID else { return }
+
+        loadedRequestID = request.id
+        session.replace(with: request.spec)
+        session.scope = collectionModel.scope(forRequestWithID: request.id)
+        session.inheritedAuth = collectionModel.inheritedAuth(forRequestWithID: request.id)
+    }
+
+    /// Write the edited request back to disk.
+    public func saveSelectedRequest() async {
+        guard var request = collectionModel.selectedRequest else { return }
+        request.spec = session.spec
+        await collectionModel.update(request)
+    }
+
+    public var canSaveSelectedRequest: Bool {
+        collectionModel.selectedRequest != nil
     }
 
     /// Wired to Cmd-Return from the menu, so it works from any focused field.

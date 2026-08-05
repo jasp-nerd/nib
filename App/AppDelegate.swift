@@ -1,4 +1,5 @@
 import AppKit
+import NibCore
 import NibUI
 
 /// Application lifecycle.
@@ -47,6 +48,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Phase 3+ will reopen the last collection folder here; Phase 6 warms the response
         // text view.
         runSelfTestIfRequested()
+        runCollectionSelfTestIfRequested()
+    }
+
+    /// Diagnostic hook: open a collection folder and report what loaded.
+    ///
+    ///     NIB_SELFTEST_COLLECTION=/path/to/folder dist/Nib.app/Contents/MacOS/Nib
+    ///
+    /// Same reasoning as `NIB_SELFTEST`: a store bug and a sidebar bug are indistinguishable from
+    /// outside, and the unit tests cannot exercise the app's own wiring.
+    private func runCollectionSelfTestIfRequested() {
+        guard let path = ProcessInfo.processInfo.environment["NIB_SELFTEST_COLLECTION"],
+            let model
+        else { return }
+
+        func report(_ line: String) {
+            FileHandle.standardError.write(Data("[collection] \(line)\n".utf8))
+        }
+
+        Task {
+            let collectionModel = model.collectionModel
+            await collectionModel.open(URL(fileURLWithPath: path))
+
+            if let failure = collectionModel.loadFailure {
+                report("FAILED: \(failure)")
+                NSApp.terminate(nil)
+                return
+            }
+
+            guard let collection = collectionModel.collection else {
+                report("FAILED: nothing loaded")
+                NSApp.terminate(nil)
+                return
+            }
+
+            report("name: \(collection.name)")
+            report("children: \(collection.children.map(\.name))")
+            report("diagnostics: \(collectionModel.diagnostics)")
+
+            for (request, folderPath) in collection.allRequests {
+                let location = folderPath.map(\.name).joined(separator: "/")
+                report(
+                    "  \(request.spec.method) \(location.isEmpty ? "" : location + "/")\(request.name) -> \(request.spec.url)"
+                )
+            }
+
+            report("fuzzy candidates: \(collectionModel.fuzzyCandidates.count)")
+            let matches = FuzzyMatcher.match(
+                query: "swift", in: collectionModel.fuzzyCandidates)
+            report("Cmd-K 'swift': \(matches.map(\.text))")
+
+            // Select the first request and send it, exercising the whole chain.
+            report("selected: \(collectionModel.selectedRequest?.name ?? "<none>")")
+            model.loadSelectedRequest()
+            report("session url: \(model.session.spec.url)")
+            report("inherited auth: \(model.session.inheritedAuth)")
+
+            report("canSend: \(model.session.canSend)")
+            report("scope baseUrl: \(model.session.scope.value(for: "baseUrl") ?? "<undefined>")")
+            model.sendCurrentRequest()
+            await model.session.inFlight?.value
+            report("unresolved: \(model.session.unresolved.map(\.name))")
+            report("notes: \(model.session.notes)")
+            if let response = model.session.response {
+                report(
+                    "RESPONSE \(response.status) \(response.statusText) in \(response.durationText)"
+                )
+            } else {
+                report("state: \(model.session.state)")
+            }
+
+            NSApp.terminate(nil)
+        }
     }
 
     /// Diagnostic hook: send one request through the real app and report what happened.
@@ -128,6 +201,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model?.cancelCurrentRequest()
     }
 
+    @objc func openCollection(_ sender: Any?) {
+        guard let model else { return }
+        Task { await model.collectionModel.promptToOpen() }
+    }
+
+    @objc func closeCollection(_ sender: Any?) {
+        model?.collectionModel.close()
+    }
+
+    @objc func saveRequest(_ sender: Any?) {
+        guard let model else { return }
+        Task { await model.saveSelectedRequest() }
+    }
+
+    @objc func showPalette(_ sender: Any?) {
+        model?.isPalettePresented = true
+    }
+
     @objc func copyAsCurl(_ sender: Any?) {
         report(model?.copyAsCurl(redacted: false))
     }
@@ -152,6 +243,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return model.session.state.isSending
         case #selector(pasteCurlAsRequest(_:)):
             return model.clipboardHoldsCurlCommand
+        case #selector(saveRequest(_:)):
+            return model.canSaveSelectedRequest
+        case #selector(closeCollection(_:)), #selector(showPalette(_:)):
+            return model.collectionModel.isOpen
         case #selector(copyAsCurl(_:)), #selector(copyAsCurlRedacted(_:)):
             return !model.session.spec.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:

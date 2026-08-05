@@ -127,9 +127,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         let split = RootSplitViewController()
 
         let sidebar = NSSplitViewItem(
-            sidebarWithViewController: makeHost(SidebarPlaceholder())
+            sidebarWithViewController: makeHost(SidebarContent(model: model))
         )
-        sidebar.minimumThickness = 180
+        sidebar.minimumThickness = 220
         sidebar.maximumThickness = 420
         sidebar.canCollapse = true
 
@@ -141,7 +141,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         detail.splitView.autosaveName = "NibDetailSplit"
 
         let request = NSSplitViewItem(
-            viewController: makeHost(RequestPane(session: model.session))
+            viewController: makeHost(RequestContent(model: model))
         )
         request.minimumThickness = 160
         // Higher holding priority than the response, so dragging the window taller grows the
@@ -153,7 +153,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         request.holdingPriority = .defaultLow + 1
 
         let response = NSSplitViewItem(
-            viewController: makeHost(ResponsePane(session: model.session))
+            viewController: makeHost(ResponseContent(model: model))
         )
         response.minimumThickness = 160
         response.holdingPriority = .defaultLow
