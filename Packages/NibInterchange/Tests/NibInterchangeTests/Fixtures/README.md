@@ -8,4 +8,3 @@ Built BEFORE the importers, and development is driven off it.
   live here, so the corpus is the defence.
 - `curl/` — verbatim strings from Chrome devtools, Firefox devtools, and Windows
   `cmd` "Copy as cURL". These three are the acceptance test for the shell tokenizer.
-- `expected/` — expected `ImportResult` snapshots.

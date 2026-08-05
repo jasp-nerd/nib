@@ -17,7 +17,12 @@ struct FixtureCorpusTests {
         let root = try Self.fixturesRoot()
         #expect(FileManager.default.fileExists(atPath: root.path))
 
-        for subdirectory in ["postman", "curl", "expected"] {
+        // `expected/` was planned for ImportResult snapshots and never written; the importer
+        // tests assert inline instead. It was in this list as an empty directory, which git does
+        // not track — so it existed on the machine that wrote the test and nowhere else, and CI
+        // failed on a fresh checkout. Asserting a directory with no contents and no readers was
+        // testing nothing.
+        for subdirectory in ["postman", "curl"] {
             let path = root.appendingPathComponent(subdirectory)
             #expect(
                 FileManager.default.fileExists(atPath: path.path),
