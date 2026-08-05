@@ -110,9 +110,9 @@ public struct ResponsePane: View {
     }
 
     private func progressText(received: Int64, expected: Int64?) -> String {
-        let receivedText = ByteCountFormatter.string(fromByteCount: received, countStyle: .binary)
+        let receivedText = received.formatted(.byteCount(style: .binary))
         guard let expected, expected > 0 else { return "Sending… \(receivedText)" }
-        let total = ByteCountFormatter.string(fromByteCount: expected, countStyle: .binary)
+        let total = expected.formatted(.byteCount(style: .binary))
         return "Receiving… \(receivedText) of \(total)"
     }
 
@@ -160,7 +160,7 @@ public struct ResponsePane: View {
         VStack(spacing: 0) {
             if response.isTruncated {
                 Label(
-                    "Showing the first \(ByteCountFormatter.string(fromByteCount: Int64(ResponseViewModel.displayLimit), countStyle: .binary)) of \(response.sizeText).",
+                    "Showing the first \(Int64(ResponseViewModel.displayLimit).formatted(.byteCount(style: .binary))) of \(response.sizeText).",
                     systemImage: "info.circle"
                 )
                 .font(.callout)

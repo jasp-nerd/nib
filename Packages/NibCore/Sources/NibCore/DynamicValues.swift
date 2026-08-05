@@ -20,6 +20,13 @@ public struct DynamicValues: Sendable {
         "$guid", "$randomUUID", "$timestamp", "$isoTimestamp", "$randomInt",
     ]
 
+    /// Whether a dynamic name is recognised, without generating a value.
+    ///
+    /// Used by the URL-field highlighter, which runs on every keystroke and must not allocate.
+    public static func supports(_ name: String) -> Bool {
+        supportedNames.contains(name)
+    }
+
     public static let live = DynamicValues { name in
         switch name {
         case "$guid", "$randomUUID":

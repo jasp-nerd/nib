@@ -62,12 +62,13 @@ public struct RequestPane: View {
                 .focused($urlFocused)
                 .onSubmit { session.send() }
 
+            // No `.keyboardShortcut` here: the File menu owns Cmd-Return and Cmd-period. AppKit
+            // matches menu key equivalents before the event reaches the view hierarchy, so these
+            // would be dead code that drifts out of step with `validateMenuItem`.
             if session.state.isSending {
                 Button("Cancel") { session.cancel() }
-                    .keyboardShortcut(".", modifiers: .command)
             } else {
                 Button("Send") { session.send() }
-                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!session.canSend)
                     .buttonStyle(.borderedProminent)
             }
@@ -122,10 +123,20 @@ public struct RequestPane: View {
 struct HeaderTable: View {
     @Binding var headers: [HeaderField]
 
+    /// The blank row's text. Real `@State`, not a `Binding` whose getter always returns `""` — that
+    /// trick drove the field back to empty after each committed keystroke, so typing "abc" produced
+    /// either three one-character rows or one row plus stray text, depending on when AppKit
+    /// re-read the getter.
+    @State private var draftName = ""
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ForEach(Array(headers.enumerated()), id: \.offset) { index, _ in
+                // Positional identity. `HeaderField` has no id (see its doc comment for why adding
+                // one was rejected), so a delete does shift identity and can move focus to the
+                // adjacent row. The removal itself is deferred below, which is what keeps it from
+                // committing an edit through a stale binding.
+                ForEach(headers.indices, id: \.self) { index in
                     row(index: index)
                     Divider()
                 }
@@ -136,16 +147,15 @@ struct HeaderTable: View {
 
     private func row(index: Int) -> some View {
         HStack(spacing: 8) {
-            Toggle("", isOn: $headers[index].enabled)
+            Toggle("Include this header", isOn: $headers[index].enabled)
                 .labelsHidden()
                 .help("Include this header")
             TextField("Name", text: $headers[index].name)
             TextField("Value", text: $headers[index].value)
-            Button {
-                headers.remove(at: index)
-            } label: {
-                Image(systemName: "minus.circle")
+            Button("Remove header", systemImage: "minus.circle") {
+                remove(at: index)
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .help("Remove")
         }
@@ -156,21 +166,32 @@ struct HeaderTable: View {
         .opacity(headers[index].enabled ? 1 : 0.5)
     }
 
+    /// Remove on the next runloop pass rather than during the current view update.
+    ///
+    /// Mutating the array while a focused `TextField` in a later row still holds a binding to its old
+    /// index is the shape that commits an edit through a stale index — out of bounds if the row was
+    /// the last one. Deferring lets the field give up focus first.
+    private func remove(at index: Int) {
+        DispatchQueue.main.async {
+            guard headers.indices.contains(index) else { return }
+            headers.remove(at: index)
+        }
+    }
+
     /// Typing anything here materialises a real row, so adding a header never needs a button.
     private var blankRow: some View {
         HStack(spacing: 8) {
             Toggle("", isOn: .constant(false)).labelsHidden().disabled(true)
-            TextField(
-                "Name",
-                text: Binding(
-                    get: { "" },
-                    set: { newValue in
-                        guard !newValue.isEmpty else { return }
-                        headers.append(HeaderField(name: newValue, value: ""))
-                    })
-            )
-            Text("").frame(maxWidth: .infinity)
-            Image(systemName: "minus.circle").opacity(0)
+            TextField("Name", text: $draftName)
+                .onChange(of: draftName) {
+                    guard !draftName.isEmpty else { return }
+                    headers.append(HeaderField(name: draftName, value: ""))
+                    draftName = ""
+                }
+            Spacer()
+            // Fixed-width spacer rather than a hidden image: an invisible-but-hittable control is a
+            // VoiceOver artefact.
+            Color.clear.frame(width: 20, height: 1)
         }
         .font(.system(.body, design: .monospaced))
         .textFieldStyle(.plain)
@@ -181,13 +202,33 @@ struct HeaderTable: View {
 
 // MARK: - Body editor
 
+/// The raw-body editor.
+///
+/// The text is projected straight out of `spec` rather than mirrored into `@State`. The mirrored
+/// version seeded itself in `onAppear` only, so any external change to the request left it stale —
+/// and that was reachable in normal use: pasting a cURL command sets a `--data-raw` body, `onAppear`
+/// had already fired, so the body never appeared and the next keystroke wrote the stale empty value
+/// back over the imported one.
+///
+/// `language` stays in `@State` because it is a UI preference that has to survive the body being
+/// emptied (which collapses `spec` to `.none`, taking any stored language with it). It is re-synced
+/// whenever `spec` arrives carrying one.
 struct BodyEditor: View {
     // Named `spec`, not `body` -- a stored property called `body` collides with the View
     // requirement and the error message ("invalid redeclaration") does not say why.
     @Binding var spec: BodySpec
 
-    @State private var text: String = ""
     @State private var language: BodySpec.RawLanguage = .json
+
+    private var text: Binding<String> {
+        Binding(
+            get: {
+                if case .raw(let existing, _) = spec { return existing }
+                return ""
+            },
+            set: { spec = $0.isEmpty ? .none : .raw(text: $0, language: language) }
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -199,31 +240,28 @@ struct BodyEditor: View {
                 }
                 .frame(width: 200)
                 Spacer()
-                Button("Clear") {
-                    text = ""
-                    syncUp()
-                }
-                .disabled(text.isEmpty)
+                Button("Clear") { spec = .none }
+                    .disabled(text.wrappedValue.isEmpty)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
             Divider()
 
-            TextEditor(text: $text)
+            TextEditor(text: text)
                 .font(.system(.body, design: .monospaced))
-                .onChange(of: text) { syncUp() }
-                .onChange(of: language) { syncUp() }
         }
-        .onAppear {
-            if case .raw(let existing, let existingLanguage) = spec {
-                text = existing
-                language = existingLanguage
+        .onChange(of: language) {
+            // Re-tag an existing body with the newly chosen language, without discarding it.
+            if case .raw(let existing, _) = spec, !existing.isEmpty {
+                spec = .raw(text: existing, language: language)
             }
         }
-    }
-
-    private func syncUp() {
-        spec = text.isEmpty ? .none : .raw(text: text, language: language)
+        .onChange(of: spec, initial: true) {
+            // Follow an externally-supplied body, e.g. a cURL import.
+            if case .raw(_, let incoming) = spec, incoming != language {
+                language = incoming
+            }
+        }
     }
 }

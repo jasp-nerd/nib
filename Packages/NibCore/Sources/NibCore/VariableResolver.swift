@@ -225,9 +225,12 @@ public enum VariableResolver {
             guard let match = nextPlaceholder(in: template, from: index) else { break }
 
             if !match.name.isEmpty {
+                // `supports(_:)`, not `generate(_:)`. Probing with the generator minted a fresh
+                // UUID and formatted a date on every keystroke, contradicting this function's own
+                // promise of no allocation beyond the output array.
                 let resolvable =
                     match.name.hasPrefix("$")
-                    ? dynamic.generate(match.name) != nil
+                    ? DynamicValues.supports(match.name)
                     : scope.value(for: match.name) != nil
 
                 found.append(

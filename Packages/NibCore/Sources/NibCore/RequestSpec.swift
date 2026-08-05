@@ -62,6 +62,20 @@ public struct Param: Sendable, Hashable, Codable {
     }
 }
 
+/// A request header row.
+///
+/// A pure value type, deliberately with no identity.
+///
+/// An attempt was made to add a non-encoded `let id: UUID` so SwiftUI's `ForEach($headers)` could key
+/// rows stably. It worked for the UI and **crashed the test suite**: the resulting asymmetry — `id`
+/// excluded from `CodingKeys`, `Equatable` and `Hashable`, but present as stored state — traps inside
+/// Swift Testing's `@Test(arguments:)` machinery when `HTTPRequestSpec` is used as a parameterised
+/// argument (`EXC_BREAKPOINT` in `_callBinaryOperator`). The same code paths pass in a plain loop, so
+/// it is specific to how the framework derives stable IDs for `Codable` arguments.
+///
+/// The right conclusion is not to work around the framework: UI identity does not belong in the
+/// on-disk model. It would also have put a UUID in every header row on disk, which is diff noise in
+/// files whose readability is a selling point. Row identity stays a `NibUI` concern.
 public struct HeaderField: Sendable, Hashable, Codable {
     public var name: String
     public var value: String

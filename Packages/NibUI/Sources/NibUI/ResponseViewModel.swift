@@ -6,7 +6,14 @@ import NibCore
 /// Formatting happens once here rather than in a view body, which would recompute it on every
 /// redraw — pretty-printing a few megabytes of JSON per frame is exactly the kind of thing that
 /// makes an app feel slow for no reason.
-public struct ResponseViewModel: Sendable {
+///
+/// **`nonisolated`, and built via `make` off the main actor.** `NibUI` sets
+/// `.defaultIsolation(MainActor.self)`, so without this the initialiser below — memory-mapping a
+/// file, copying up to a megabyte, parsing JSON and re-serialising it — ran on the main actor at
+/// exactly the moment the response landed. That is tens to hundreds of milliseconds of hang in the
+/// one operation the app exists to perform, and it contradicted `docs/architecture.md`: "nothing
+/// blocks the main actor; networking, parsing and file I/O all live in nonisolated packages."
+nonisolated public struct ResponseViewModel: Sendable {
     public let status: Int
     public let statusText: String
     public let headers: [SendPlan.Header]
@@ -14,7 +21,6 @@ public struct ResponseViewModel: Sendable {
     public let hops: [SendEvent.Hop]
     public let networkProtocol: String?
     public let byteCount: Int64
-    public let requestURL: URL
 
     /// The body, pretty-printed when it parses as JSON.
     ///
@@ -28,6 +34,15 @@ public struct ResponseViewModel: Sendable {
 
     public static let displayLimit = 1024 * 1024
 
+    /// Build off the main actor.
+    ///
+    /// `@concurrent` puts the work on the global executor rather than inheriting the caller's
+    /// isolation. Both inputs are already `Sendable`, so nothing else has to change.
+    @concurrent
+    public static func make(result: SendEvent.Result, requestURL: URL) async -> ResponseViewModel {
+        ResponseViewModel(result: result, requestURL: requestURL)
+    }
+
     public init(result: SendEvent.Result, requestURL: URL) {
         status = result.head.status
         statusText = Self.statusText(for: result.head.status)
@@ -35,7 +50,7 @@ public struct ResponseViewModel: Sendable {
         timing = result.timing
         hops = result.hops
         networkProtocol = result.networkProtocol
-        self.requestURL = requestURL
+        _ = requestURL  // kept in the signature for a future "open in browser" affordance
 
         let raw: Data
         switch result.payload {
@@ -89,7 +104,7 @@ public struct ResponseViewModel: Sendable {
     }
 
     public var sizeText: String {
-        ByteCountFormatter.string(fromByteCount: byteCount, countStyle: .binary)
+        byteCount.formatted(.byteCount(style: .binary))
     }
 
     // swiftlint:disable:next cyclomatic_complexity

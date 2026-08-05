@@ -35,6 +35,15 @@ public final class RequestSession: Identifiable {
 
     private let engine: HTTPEngine
 
+    /// Progress-coalescing state. A 200 MB download yields thousands of `.bodyChunk` events, and
+    /// publishing every one invalidates the response pane and reformats two byte counts each time.
+    ///
+    /// This is event-driven throttling, not a polling timer: it compares against the clock on an
+    /// event we already received, so it does not violate the no-timers rule in CLAUDE.md. The
+    /// idiomatic alternative would be `AsyncAlgorithms.throttle`, which is a dependency the
+    /// bundle-size claim cannot afford for a progress bar.
+    private var lastPublishedProgress: (bytes: Int64, at: ContinuousClock.Instant)?
+
     /// The in-flight send, if any.
     ///
     /// Exposed so callers can await completion deterministically -- tests do this instead of polling
@@ -50,11 +59,6 @@ public final class RequestSession: Identifiable {
         self.spec = spec
         self.scope = scope
         self.engine = engine
-    }
-
-    /// Placeholders in the URL and whether each resolves, for inline highlighting.
-    public var urlPlaceholders: [VariableResolver.Placeholder] {
-        VariableResolver.placeholders(in: spec.url, scope: scope)
     }
 
     public var canSend: Bool {
@@ -95,6 +99,7 @@ public final class RequestSession: Identifiable {
         }
 
         state = .sending(received: 0, expected: nil)
+        lastPublishedProgress = nil
         let plan = built.plan
         let start = ContinuousClock.now
 
@@ -102,7 +107,7 @@ public final class RequestSession: Identifiable {
             guard let self else { return }
             for await event in engine.send(plan) {
                 if Task.isCancelled { return }
-                apply(event, plan: plan, start: start)
+                await apply(event, plan: plan, start: start)
             }
         }
     }
@@ -126,12 +131,17 @@ public final class RequestSession: Identifiable {
         notes = importNotes
     }
 
-    private func apply(_ event: SendEvent, plan: SendPlan, start: ContinuousClock.Instant) {
+    private func apply(
+        _ event: SendEvent,
+        plan: SendPlan,
+        start: ContinuousClock.Instant
+    ) async {
         switch event {
         case .started:
             state = .sending(received: 0, expected: nil)
 
         case .bodyChunk(let received, let expected):
+            guard shouldPublishProgress(received: received, expected: expected) else { break }
             state = .sending(received: received, expected: expected)
 
         case .responseHead, .redirected:
@@ -140,11 +150,36 @@ public final class RequestSession: Identifiable {
         case .finished(let result):
             state = .idle
             notes.append(contentsOf: result.fidelityNotes)
-            response = ResponseViewModel(result: result, requestURL: plan.url)
+            // Parsing and file I/O happen off the main actor; only the assignment is here.
+            response = await ResponseViewModel.make(result: result, requestURL: plan.url)
 
         case .failed(let failure):
             state = .failed(failure.message)
         }
+    }
+
+    /// Publish progress at most every 50 ms, or when it moves by at least 1% of the total.
+    ///
+    /// The final `.finished` event always lands, so the last update is never lost to throttling.
+    private func shouldPublishProgress(received: Int64, expected: Int64?) -> Bool {
+        let now = ContinuousClock.now
+
+        guard let last = lastPublishedProgress else {
+            lastPublishedProgress = (received, now)
+            return true
+        }
+
+        let elapsed = now - last.at
+        let movedEnough: Bool
+        if let expected, expected > 0 {
+            movedEnough = Double(received - last.bytes) / Double(expected) >= 0.01
+        } else {
+            movedEnough = received - last.bytes >= 256 * 1024
+        }
+
+        guard movedEnough || elapsed >= .milliseconds(50) else { return false }
+        lastPublishedProgress = (received, now)
+        return true
     }
 
     private static func describe(_ error: Error) -> String {
