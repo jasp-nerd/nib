@@ -22,6 +22,11 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     /// once there is more than one window's worth of state.
     let model = AppModel()
 
+    /// Held so `⌘F` can reach the text view's find bar. The alternative — walking the split view
+    /// hierarchy looking for the right class — is the kind of thing that keeps compiling after
+    /// someone rearranges the panes and then quietly does nothing.
+    private(set) var responseController: ResponsePaneController?
+
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
@@ -38,7 +43,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
 
         window.delegate = self
 
-        let root = Self.makeSplitViewController(model: model)
+        let responseController = ResponsePaneController(model: model)
+        self.responseController = responseController
+        let root = Self.makeSplitViewController(model: model, response: responseController)
         root.onViewDidAppear = { [weak self] in
             self?.reportFirstFrameIfNeeded()
             self?.applyInitialDividerPositionIfNeeded()
@@ -123,7 +130,10 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         return host
     }
 
-    private static func makeSplitViewController(model: AppModel) -> RootSplitViewController {
+    private static func makeSplitViewController(
+        model: AppModel,
+        response responseController: ResponsePaneController
+    ) -> RootSplitViewController {
         let split = RootSplitViewController()
 
         let sidebar = NSSplitViewItem(
@@ -152,9 +162,10 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         // `applyInitialDividerPositionIfNeeded`.
         request.holdingPriority = .defaultLow + 1
 
-        let response = NSSplitViewItem(
-            viewController: makeHost(ResponseContent(model: model))
-        )
+        // Not an `NSHostingController`. The response body is a real `NSTextView` on TextKit 2,
+        // and the reason it is not wrapped in an `NSViewRepresentable` is written up on
+        // `ResponseBodyView`.
+        let response = NSSplitViewItem(viewController: responseController)
         response.minimumThickness = 160
         response.holdingPriority = .defaultLow
 

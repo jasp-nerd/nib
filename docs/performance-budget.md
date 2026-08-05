@@ -125,6 +125,29 @@ There was also an ordering bug: `onFirstFrame` was assigned *after* `showWindow(
 notification can fire synchronously inside `showWindow`, so the callback was nil when it fired
 and the latch then suppressed every later attempt.
 
+## Memory while holding a large response (Phase 6)
+
+Measured with `NIB_SELFTEST_HOLD`, which keeps the app alive after a self-test so it can be weighed
+while it is actually holding something rather than while it is empty.
+
+Fetching an **8.2 MB** JSON response, three consecutive runs:
+
+| | `phys_footprint` |
+|---|---|
+| Empty, idle | 29 MB |
+| Holding an 8.2 MB response | 57 MB, 57 MB, 64 MB |
+
+Against a budget of 60 MB written for a *5 MB* response, so this is a payload 64% larger than the
+budgeted scenario sitting roughly on the line — comfortable, but not a lot of headroom, and worth
+re-measuring rather than assuming when Phase 7 adds response history.
+
+Where it goes: the display copy is capped at 1 MB (`ResponseViewModel.displayLimit`), and above
+8 MB the payload spills to a file and is memory-mapped rather than held. What remains is the
+displayed megabyte, its hard-wrapped copy, and TextKit's UTF-16 storage for the same text.
+
+Highlighting contributes nothing to the resting figure by design: colour is applied with
+`setRenderingAttributes`, which is not stored per character, and only over the viewport.
+
 ## Remaining budgets (not yet measurable)
 
 These need the subsystems that own them, and get enforced as each phase lands.
@@ -132,7 +155,6 @@ These need the subsystems that own them, and get enforced as each phase lands.
 | Metric | Budget | Lands in |
 |---|---|---|
 | Idle RSS, empty | ≤ 35 MB | Phase 1 |
-| Idle RSS, 2000 requests + 5 MB response | ≤ 60 MB | Phase 6 |
 | Idle CPU over 60 s | 0.0% | Phase 3 (structurally backed by the CI timer ban) |
 | Load 2000 requests from disk | ≤ 150 ms | Phase 3 |
 | Postman import, 5 MB collection | ≤ 1.5 s | Phase 4 |

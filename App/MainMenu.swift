@@ -98,7 +98,9 @@ enum MainMenu {
             key: "v", modifiers: [.command, .option], target: target)
         add(menu, "Select All", #selector(NSText.selectAll(_:)), key: "a")
         menu.addItem(.separator())
-        add(menu, "Find in Response", nil, key: "f", enabled: false)
+        add(
+            menu, "Find in Response", #selector(AppDelegate.findInResponse(_:)), key: "f",
+            target: target)
         return wrap("Edit", menu)
     }
 

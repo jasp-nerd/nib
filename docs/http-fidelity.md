@@ -66,6 +66,44 @@ X-Trial: one,two
 Semantically equivalent for most headers per RFC 9110, but **not** for `Set-Cookie`-style fields
 that forbid list syntax. Nib reports this in the response's fidelity notes when it happens.
 
+### The same thing happens on the way back, and `Set-Cookie` is where it bites
+
+`HTTPURLResponse.allHeaderFields` is a dictionary, so two `Set-Cookie` headers have already been
+merged into one value by the time any of our code runs. Measured against a server sending exactly
+two:
+
+```
+Set-Cookie: session=abc123; Path=/; HttpOnly; Secure; SameSite=Lax
+Set-Cookie: tracking=xyz; Path=/api; Expires=Wed, 21 Oct 2026 07:28:00 GMT
+```
+
+what arrives is one header, comma-joined:
+
+```
+session=abc123; Path=/; HttpOnly; Secure; SameSite=Lax, tracking=xyz; Path=/api; Expires=Wed, 21 Oct 2026 07:28:00 GMT
+```
+
+`Expires` contains a comma of its own, so this cannot be split naively — and handing the joined
+string to `HTTPCookie.cookies(withResponseHeaderFields:for:)` does not work either. It returned
+**one** cookie, and not the first: `session`, the one carrying every security flag, disappeared
+silently.
+
+Nib splits the joined value itself, on the only comma that reliably separates cookies — one
+followed by something shaped like `name=`, using the RFC 6265 token characters. A date's comma is
+followed by ` 21 Oct`, which is not. `ResponsePresentationTests` pins this with the exact string
+above.
+
+### `HTTPCookie` also drops `Secure` cookies parsed against an `http://` URL
+
+Measured: the same two cookies parse as two against `https://127.0.0.1` and as **one** against
+`http://127.0.0.1`, with no error either way.
+
+That is right for a browser and wrong for this tab. "My server is setting a `Secure` cookie and I
+am testing over plain HTTP on localhost" is a real misconfiguration people open the Cookies tab to
+find, and answering it with an empty list is the least useful thing we could do. So Nib parses
+against an https-normalised copy of the URL — never used to send anything — shows the cookie, and
+labels it: *marked Secure but sent over plain HTTP, a browser would discard it.*
+
 ## Redirects rewrite the method
 
 On `301`, `302` and `303`, URLSession changes the method to `GET` and drops the body — matching

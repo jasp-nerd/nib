@@ -33,6 +33,11 @@ public final class RequestSession: Identifiable {
             if case .sending = self { return true }
             return false
         }
+
+        public var isFailed: Bool {
+            if case .failed = self { return true }
+            return false
+        }
     }
 
     private let engine: HTTPEngine

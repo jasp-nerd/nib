@@ -95,6 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model?.isEnvironmentEditorPresented = true
     }
 
+    @objc func findInResponse(_ sender: Any?) {
+        mainWindowController?.responseController?.showFindBar()
+    }
+
     @objc func copyAsCurl(_ sender: Any?) {
         report(model?.copyAsCurl(redacted: false))
     }
@@ -124,6 +128,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case #selector(closeCollection(_:)), #selector(showPalette(_:)),
             #selector(importFromPostman(_:)), #selector(showEnvironments(_:)):
             return model.collectionModel.isOpen
+        case #selector(findInResponse(_:)):
+            return mainWindowController?.responseController?.canFind == true
         case #selector(copyAsCurl(_:)), #selector(copyAsCurlRedacted(_:)):
             return !model.session.spec.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:

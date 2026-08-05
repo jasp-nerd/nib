@@ -50,6 +50,26 @@ extension AppDelegate {
             await runSecretSelfTest(model: collectionModel, report: report)
             await sendSelectedAndReport(model: model, report: report)
 
+            finishSelfTest()
+        }
+    }
+
+    /// End a self-test run.
+    ///
+    /// `NIB_SELFTEST_HOLD=<seconds>` keeps the app alive afterwards so its memory can be measured
+    /// while it is holding a real response, rather than while it is empty. The budget row that
+    /// matters is "idle with a large response loaded", and an app that exits the moment it finishes
+    /// printing cannot be weighed at all.
+    func finishSelfTest() {
+        guard let hold = ProcessInfo.processInfo.environment["NIB_SELFTEST_HOLD"],
+            let seconds = Double(hold), seconds > 0
+        else {
+            NSApp.terminate(nil)
+            return
+        }
+
+        Task {
+            try? await Task.sleep(for: .seconds(seconds))
             NSApp.terminate(nil)
         }
     }
@@ -176,6 +196,21 @@ extension AppDelegate {
         return false
     }
 
+    /// What the response body pane is rendering.
+    ///
+    /// The one claim in Phase 6 that no unit test can reach: `JSONTokenizer` can be entirely
+    /// correct while `setRenderingAttributes` paints nothing, and the difference is invisible from
+    /// anywhere except the assembled view.
+    func reportBodyPane(report: (String) -> Void) {
+        guard ProcessInfo.processInfo.environment["NIB_SELFTEST_BODY"] != nil,
+            let controller = mainWindowController?.responseController
+        else { return }
+
+        for line in controller.bodyDiagnostics() {
+            report(line)
+        }
+    }
+
     func sendSelectedAndReport(model: AppModel, report: (String) -> Void) async {
         report("selected: \(model.collectionModel.selectedRequest?.name ?? "<none>")")
         model.loadSelectedRequest()
@@ -192,6 +227,8 @@ extension AppDelegate {
 
         model.sendCurrentRequest()
         await model.session.inFlight?.value
+
+        reportBodyPane(report: report)
         report("unresolved: \(model.session.unresolved.map(\.name))")
         report("notes: \(model.session.notes)")
         if let response = model.session.response {
@@ -257,10 +294,12 @@ extension AppDelegate {
                 report("RESPONSE \(response.status) \(response.statusText)")
                 report("  duration: \(response.durationText)  size: \(response.sizeText)")
                 report("  body[0..120]: \(response.bodyText.prefix(120))")
+                report("  cookies: \(response.cookies.map(\.name))")
             } else {
                 report("RESPONSE: none")
             }
-            NSApp.terminate(nil)
+            reportBodyPane(report: report)
+            finishSelfTest()
         }
     }
 }
