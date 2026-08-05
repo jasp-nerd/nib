@@ -181,6 +181,12 @@ footer { border-top: 1px solid var(--line); padding: 44px 0 72px; color: var(--f
 footer a { color: var(--dim); }
 
 .icon { width: 1em; height: 1em; flex: none; vertical-align: -.125em; }
+
+/* Brand marks in the comparison header, at their own colours. Ours is the logo violet and
+   Postman's is their orange; neither is recoloured to suit the page. */
+.brandmark { width: 15px; height: 15px; vertical-align: -.16em; margin-right: 7px; }
+.brandmark.nib { color: var(--accent); }
+.brandmark.postman { color: #ff6c37; }
 .cta .icon { width: 16px; height: 16px; }
 </style>
 </head>
@@ -190,10 +196,11 @@ footer a { color: var(--dim); }
   the same reason the app has no dependencies, and it means the page renders identically offline
   and cannot be broken by somebody else's outage.
 
-  Everything is a 24x24 stroke glyph on currentColor except the GitHub mark, which is the official
-  Invertocat path. Postman's mark is deliberately absent: using a competitor's trademark to label a
-  column you are winning is the kind of thing that turns a comparison into an advert, and their
-  name in text says the same thing without borrowing their brand.
+  Most are 24x24 stroke glyphs on currentColor. Two are real brand marks: GitHub's Invertocat and
+  Postman's logo, both unmodified and both used only to identify the thing they belong to. That is
+  what a comparison table is for, and the footer says plainly that we are not affiliated with them.
+  Neither mark is recoloured or stretched, since altering someone's logo is where nominative use
+  stops being nominative.
 -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
@@ -223,6 +230,9 @@ footer a { color: var(--dim); }
     </symbol>
     <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M6 6l12 12M18 6L6 18"/>
+    </symbol>
+    <symbol id="i-postman" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M13.527.099C6.955-.744.942 3.9.099 10.473c-.843 6.572 3.8 12.584 10.373 13.428 6.573.843 12.587-3.801 13.428-10.374C24.744 6.955 20.101.943 13.527.099zm2.471 7.485a.855.855 0 0 0-.593.25l-4.453 4.453-.307-.307-.643-.643c4.389-4.376 5.18-4.418 5.996-3.753zm-4.863 4.861l4.44-4.44a.62.62 0 1 1 .847.903l-4.699 4.125-.588-.588zm.33.694l-1.1.238a.06.06 0 0 1-.067-.032.06.06 0 0 1 .01-.073l.645-.645.512.512zm-2.803-.459l1.172-1.172.879.878-1.979.426a.074.074 0 0 1-.085-.039.072.072 0 0 1 .013-.093zm-3.646 6.058a.076.076 0 0 1-.069-.083.077.077 0 0 1 .022-.046h.002l.946-.946 1.222 1.222-2.123-.147zm2.425-1.256a.228.228 0 0 0-.117.256l.203.865a.125.125 0 0 1-.211.117h-.003l-.934-.934-.294-.295 3.762-3.758 1.82-.393.874.874c-1.255 1.102-2.971 2.201-5.1 3.268zm5.279-3.428h-.002l-.839-.839 4.699-4.125a.952.952 0 0 0 .119-.127c-.148 1.345-2.029 3.245-3.977 5.091zm3.657-6.46l-.003-.002a1.822 1.822 0 0 1 2.459-2.684l-1.61 1.613a.119.119 0 0 0 0 .169l1.247 1.247a1.817 1.817 0 0 1-2.093-.343zm2.578 0a1.714 1.714 0 0 1-.271.218h-.001l-1.207-1.207 1.533-1.533c.661.72.637 1.832-.054 2.522zM18.855 6.05a.143.143 0 0 0-.053.157.416.416 0 0 1-.053.45.14.14 0 0 0 .023.197.141.141 0 0 0 .084.03.14.14 0 0 0 .106-.05.691.691 0 0 0 .087-.751.138.138 0 0 0-.194-.033z"/>
     </symbol>
     <symbol id="i-nib" viewBox="0 0 24 24">
       <path fill="currentColor" fill-rule="evenodd" d="M12 1.5 L17.4 5.4 C18.6 6.3 19.1 7.6 18.8 9 L12.8 22.2 A0.9 0.9 0 0 1 11.2 22.2 L5.2 9 C4.9 7.6 5.4 6.3 6.6 5.4 Z M12 6 A1.9 1.9 0 1 0 12 9.8 A1.9 1.9 0 1 0 12 6 Z M11.2 11.4 L12.8 11.4 L12 22.4 Z"/>
@@ -311,7 +321,11 @@ footer a { color: var(--dim); }
     <p class="lede">These numbers were measured on one machine against Postman 12.22.3 for Apple silicon, downloaded from postman.com. Where we could not measure something, the row says so rather than guessing.</p>
     <table>
       <thead>
-        <tr><th></th><th class="ours">Nib</th><th>Postman 12.22.3</th></tr>
+        <tr>
+          <th></th>
+          <th class="ours"><svg class="brandmark nib"><use href="#i-nib"/></svg>Nib</th>
+          <th><svg class="brandmark postman"><use href="#i-postman"/></svg>Postman 12.22.3</th>
+        </tr>
       </thead>
       <tbody>
         <tr><td>On disk</td><td class="ours"><b>1.6 MB</b></td><td><b>353 MB</b>, of which 213 MB is Electron</td></tr>
