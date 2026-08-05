@@ -183,3 +183,89 @@ public struct RequestSettings: Sendable, Hashable, Codable {
 
     public static let `default` = RequestSettings()
 }
+
+// MARK: - Explicit on-disk encodings
+//
+// These types are written into the user's git-tracked collection folder, so their JSON shape is a
+// documented file format rather than an implementation detail. Swift's synthesized enum encoding
+// produces `{"bearer":{"token":"x"}}` — legal, but opaque to a human reading a diff, and it is a
+// property of the compiler rather than a decision we made. A `type` discriminator is stable,
+// readable, and forward-compatible: an unknown type degrades instead of throwing.
+
+extension AuthSpec {
+    private enum CodingKeys: String, CodingKey {
+        case type, token, username, password, name, value, placement
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(String.self, forKey: .type) {
+        case "inherit":
+            self = .inherit
+        case "bearer":
+            self = .bearer(token: try container.decodeIfPresent(String.self, forKey: .token) ?? "")
+        case "basic":
+            self = .basic(
+                username: try container.decodeIfPresent(String.self, forKey: .username) ?? "",
+                password: try container.decodeIfPresent(String.self, forKey: .password) ?? "")
+        case "apiKey":
+            self = .apiKey(
+                name: try container.decodeIfPresent(String.self, forKey: .name) ?? "",
+                value: try container.decodeIfPresent(String.self, forKey: .value) ?? "",
+                placement: try container.decodeIfPresent(
+                    APIKeyPlacement.self, forKey: .placement) ?? .header)
+        default:
+            // Includes "none" and anything a future version introduces. Degrading to no auth is
+            // safer than failing the load: the request still opens and the user can see it.
+            self = .none
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .none:
+            try container.encode("none", forKey: .type)
+        case .inherit:
+            try container.encode("inherit", forKey: .type)
+        case .bearer(let token):
+            try container.encode("bearer", forKey: .type)
+            try container.encode(token, forKey: .token)
+        case .basic(let username, let password):
+            try container.encode("basic", forKey: .type)
+            try container.encode(username, forKey: .username)
+            try container.encode(password, forKey: .password)
+        case .apiKey(let name, let value, let placement):
+            try container.encode("apiKey", forKey: .type)
+            try container.encode(name, forKey: .name)
+            try container.encode(value, forKey: .value)
+            try container.encode(placement, forKey: .placement)
+        }
+    }
+}
+
+extension MultipartPart.Content {
+    private enum CodingKeys: String, CodingKey { case type, text, path }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(String.self, forKey: .type) {
+        case "file":
+            self = .file(path: try container.decodeIfPresent(String.self, forKey: .path) ?? "")
+        default:
+            self = .text(try container.decodeIfPresent(String.self, forKey: .text) ?? "")
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .text(let text):
+            try container.encode("text", forKey: .type)
+            try container.encode(text, forKey: .text)
+        case .file(let path):
+            try container.encode("file", forKey: .type)
+            try container.encode(path, forKey: .path)
+        }
+    }
+}

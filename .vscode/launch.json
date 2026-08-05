@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:fast_macos}",
+            "name": "Debug Nib",
+            "target": "Nib",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Nib"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:fast_macos}",
+            "name": "Release Nib",
+            "target": "Nib",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Nib"
+        }
+    ]
+}
