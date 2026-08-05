@@ -20,14 +20,21 @@ CLT_LIB  := $(CLT_DEV)/usr/lib
 
 HAS_XCODE := $(shell xcode-select -p 2>/dev/null | grep -q "Xcode.app" && echo yes || echo no)
 
+# `--enable-swift-testing` is passed in both cases, not only under Command Line Tools. Whether a
+# bare `swift test` links the Testing framework depends on the toolchain, and when it does not the
+# failure is a wall of undefined Testing symbols at link time rather than anything that names the
+# real problem. CI hit exactly that: everything compiled, then the test binary would not link.
+# Asking for it explicitly costs nothing where it is already the default.
 ifeq ($(HAS_XCODE),no)
+# Command Line Tools ships Testing.framework but does not wire up the search paths, so they have to
+# be supplied by hand — including the rpath to usr/lib for lib_TestingInterop.dylib.
 TEST_FLAGS := --disable-xctest --enable-swift-testing \
               -Xswiftc -F -Xswiftc $(CLT_FW) \
               -Xlinker -F -Xlinker $(CLT_FW) \
               -Xlinker -rpath -Xlinker $(CLT_FW) \
               -Xlinker -rpath -Xlinker $(CLT_LIB)
 else
-TEST_FLAGS :=
+TEST_FLAGS := --enable-swift-testing
 endif
 
 # --- Targets -------------------------------------------------------------------

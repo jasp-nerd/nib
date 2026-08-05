@@ -50,6 +50,7 @@ jobs:
           XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
           if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
           xcodebuild -version
+          swift --version
       - name: Build
         run: make build
       - name: Test
