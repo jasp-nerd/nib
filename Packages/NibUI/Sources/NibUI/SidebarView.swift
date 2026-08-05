@@ -200,28 +200,48 @@ private struct NodeMenu: View {
 
 /// The first screen anyone sees.
 ///
-/// `ContentUnavailableView` rather than a hand-built stack of `Image`/`Text`/`Button`. It is the
-/// system's empty state, which means it gets the platform's icon size, its type scale, its spacing
-/// and its centring for free — and, more to the point, it keeps getting them when the platform
-/// changes its mind, which is precisely what happened between macOS 15 and 26.
+/// Deliberately **not** `ContentUnavailableView`, which is used for the response pane's empty
+/// states a few files over. That view sizes itself for a detail pane — a large title, generous
+/// vertical rhythm, and an intrinsic width it will happily overflow a container to keep. In a
+/// sidebar clamped to 220–420pt it renders its title at display size and clips the description on
+/// both edges. The system empty state is the right call in a wide pane and the wrong one here, and
+/// the difference is the pane width rather than anything about the content.
+///
+/// What is kept from it is the shape: symbol, title, description, then actions, in that order.
 private struct EmptyCollectionView: View {
     var model: CollectionModel
 
     var body: some View {
-        ContentUnavailableView {
-            Label("No collection open", systemImage: "folder")
-        } description: {
-            Text(
-                "Nib keeps requests as files in a folder you choose, so you can diff and commit them."
-            )
-        } actions: {
+        VStack(spacing: Metrics.pane) {
+            Spacer(minLength: 0)
+
+            Image(systemName: "folder")
+                .font(.system(size: 32))
+                // Hierarchical gives the folder's flap and body separate weights, so the glyph has
+                // internal structure at this size instead of being one grey slab.
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tertiary)
+
+            VStack(spacing: Metrics.chip) {
+                Text("No collection open")
+                    .font(.headline)
+                Text(
+                    "Nib keeps requests as files in a folder you choose, "
+                        + "so you can diff and commit them."
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+
             Button("Open Folder…") {
                 Task { await model.promptToOpen() }
             }
             .buttonStyle(.borderedProminent)
             // macOS 26 grew an extra control size and made the existing ones taller. A primary
             // action in an empty state is the canonical place for `.large`, and asking for it by
-            // name means the button tracks the system's metrics instead of the previous OS's.
+            // name means the button tracks the system's metrics rather than the previous OS's.
             .controlSize(.large)
 
             // The migration hook, on the first screen anyone sees. Someone arriving from Postman
@@ -238,11 +258,16 @@ private struct EmptyCollectionView: View {
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
                     .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             recents
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, Metrics.pane)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -258,11 +283,12 @@ private struct EmptyCollectionView: View {
                         Task { await model.open(url) }
                     }
                     .buttonStyle(.link)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                     .help(url.path)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, Metrics.row)
         }
     }
 }

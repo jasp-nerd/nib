@@ -38,9 +38,18 @@ openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes \
     -addext "extendedKeyUsage=critical,codeSigning" \
     2>/dev/null
 
+# The algorithm flags are not optional, and leaving them off produces a file that looks fine and
+# then fails on another machine. OpenSSL 3 defaults to PBES2 with AES-256-CBC and a SHA-256 MAC,
+# and macOS `security import` cannot read either: it answers "MAC verification failed during
+# PKCS12 import (wrong password?)", which sends you looking for a password problem that does not
+# exist. Measured — a default-built p12 imported into the login keychain here but was rejected by
+# a clean keychain on a CI runner. SHA-1 and 3DES are weak, and are the right choice anyway for a
+# transport container whose passphrase is a CI secret and whose contents are a public certificate
+# and a key that only signs.
 openssl pkcs12 -export \
     -inkey "$OUT/nib.key" -in "$OUT/nib.crt" \
     -out "$OUT/nib.p12" -name "$NAME" \
+    -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1 \
     -passout pass:"$P12_PASSWORD"
 
 echo "==> importing into the login keychain"
