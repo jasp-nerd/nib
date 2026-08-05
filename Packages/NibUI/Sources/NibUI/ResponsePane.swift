@@ -27,9 +27,16 @@ struct ResponseChrome: View {
     }
 
     private var statusRow: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Metrics.pane) {
             StatusSummary(session: session)
-            Spacer()
+                // The status code, the duration and the size are the answer to the question the
+                // send was asking. They must never be the thing that gets squeezed: at 1100pt wide
+                // the two segmented controls' fixed widths left about 130pt here, which rendered as
+                // "2…  55…  50…" — a status pill that does not say the status.
+                .fixedSize()
+                .layoutPriority(1)
+
+            Spacer(minLength: Metrics.row)
 
             if session.response != nil || !model.history.isEmpty {
                 if let response = session.response, state.tab == .body, response.isPrettyPrinted,
@@ -43,15 +50,20 @@ struct ResponseChrome: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    .frame(width: 130)
+                    .fixedSize()
                 }
 
+                // No `.frame(width: 330)`. Adopting the new design explicitly asks apps to stop
+                // hard-coding control dimensions, because macOS 26 changed the metrics underneath
+                // them — a width measured against the old segmented control is now either clipping
+                // its labels or padding them. `fixedSize` asks the control how wide it wants to be
+                // and believes the answer.
                 Picker("", selection: $state.tab) {
                     ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 330)
+                .fixedSize()
 
                 if let response = session.response {
                     Button("Copy response body", systemImage: "doc.on.doc") {
@@ -64,8 +76,8 @@ struct ResponseChrome: View {
             }
         }
         .font(.callout)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Metrics.pane)
+        .padding(.vertical, Metrics.row)
     }
 
     /// `bodyText`, not `displayText` — the hard-wrap newlines are a display concession and must not

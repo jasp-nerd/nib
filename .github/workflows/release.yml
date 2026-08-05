@@ -133,8 +133,8 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes"
 
-          git clone git@github.com:jasp-nerd/homebrew-nib.git tap
-          cd tap
+          git clone git@github.com:jasp-nerd/homebrew-nib.git "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
           sed -i '' "s/  version \".*\"/  version \"${VERSION}\"/" Casks/nib.rb
           sed -i '' "s/  sha256 \".*\"/  sha256 \"${SHA}\"/"       Casks/nib.rb
 
