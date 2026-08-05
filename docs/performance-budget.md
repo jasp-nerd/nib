@@ -10,8 +10,10 @@ Swift 6.3.3.
 
 | Metric | Measured | Budget | Verdict |
 |---|---|---|---|
-| Bundle on disk | **1684 KB** | 5.0 MB | 33% of budget |
-| Launch: `main()` → first frame | **~200 ms** (median of three runs of seven) | 400 ms | 50% of budget |
+| Bundle on disk | **3272 KB** | 5.0 MB | 63% of budget |
+| ├ binary | 1736 KB | | |
+| └ app icon (`AppIcon.icns` + `Assets.car`) | **1524 KB** | | |
+| Launch: `main()` → first frame | **~228 ms** (median of five runs) | 400 ms | 57% of budget |
 | Idle physical footprint | **30 MB** | 35 MB | 86% of budget |
 | Idle CPU | **0.0%** | 0.0% | ok |
 | Embedded frameworks | **0** | 0 | ok |
@@ -19,6 +21,40 @@ Swift 6.3.3.
 
 Reproduce with `make size`, `make measure` and `make memory`. Launch timing is noisy enough that a
 single run is not worth quoting — see the note on cold starts below.
+
+### The app icon is 47% of the bundle, and that is not a mistake
+
+Worth stating because it is the first thing that looks wrong: the icon weighs nearly as much as the
+program. It is `App/AppIcon.icon`, an Icon Composer package, compiled by `actool` into two files.
+
+`AppIcon.icns` is 44 KB and tops out at 256 px — that is all `actool` puts in it. Everything above
+256 px, and the layered structure macOS re-composes from for the Dark, Tinted and Clear icon
+styles, is in `Assets.car`. Measured with `assetutil`, that file is 24 assets: the *recipe* (the
+nib vector, the colours, the gradients, three appearance-keyed `IconImageStack`s) is about **5 KB**,
+and the other **98% is seven pre-rendered RGBA composites** — 1024², twice, once per scale factor,
+plus 512² and 256².
+
+It does not shrink, and the levers you would reach for do not work:
+
+| Attempt | Result |
+|---|---|
+| Solid background instead of the gradient | 1668 → 1648 KB |
+| `specular` and `translucency` off | no change |
+| `supported-platforms` narrowed to macOS squares | byte-identical |
+| `--compress-pngs` | no change |
+| `--standalone-icon-behavior none` | no change |
+| **`--optimization space`** | **1668 → 1480 KB, all sizes and all three appearance stacks kept** |
+
+Only the last one helps, and it is applied in both build paths. This is a known Xcode 26 regression
+— the catalogue used to hold two icon sizes and now holds seven — with no Apple response and no
+workaround. It is also not peculiar to us: **Calculator.app on this machine ships a 1756 KB
+`Assets.car` in a 3532 KB bundle**, which is Nib's shape almost exactly.
+
+The alternative is dropping `Assets.car` and shipping the `.icns` alone for 1792 KB total. Verified
+to work — `NSWorkspace.icon(forFile:)` still returns the full icon, because the glass is baked into
+the raster. It costs two things: nothing sharper than 256 px, and an icon that ignores the Dark and
+Tinted icon styles while every other icon in the Dock follows them. Not worth 1.5 MB of savings on a
+5 MB budget.
 
 ### Measure memory with `footprint`, never `ps -o rss=`
 

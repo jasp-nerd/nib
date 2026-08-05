@@ -80,6 +80,17 @@ targets:
     platform: macOS
     sources:
       - path: App
+        # The icon is a package directory. Left to itself XcodeGen walks into it and adds
+        # `icon.json` and the SVG as loose resources, which ships the source art in the bundle
+        # and gives you no compiled icon at all.
+        excludes:
+          - "AppIcon.icon"
+      # `type: file`, not `folder`. A folder reference is copied into the bundle verbatim, which
+      # ships icon.json and the SVG and produces no icon; a file reference lets Xcode recognise the
+      # package as an Icon Composer document and hand it to actool.
+      - path: App/AppIcon.icon
+        type: file
+        buildPhase: resources
     # App/Info.plist is the single source of truth and is shared with the SwiftPM build path
     # (Tools/build-app.sh). Do NOT re-declare the keys here with an `info: properties:` block
     # -- two copies is how a bundle id or version silently diverges between build paths.
@@ -88,6 +99,13 @@ targets:
         INFOPLIST_FILE: App/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: app.nib.Nib
         PRODUCT_NAME: Nib
+        # Points actool at App/AppIcon.icon and writes CFBundleIconFile/CFBundleIconName into the
+        # merged Info.plist. The SwiftPM path does the same thing by hand in Tools/build-app.sh.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Measured 1668 KB -> 1480 KB on the icon catalogue, with every size and all three
+        # appearance variants still present. The cost it names is asset lookup speed, which is
+        # irrelevant for an icon the Dock reads once and the app never reads at all.
+        ASSETCATALOG_COMPILER_OPTIMIZATION: space
     dependencies:
       # NibUI transitively pulls the other four.
       - package: NibUI

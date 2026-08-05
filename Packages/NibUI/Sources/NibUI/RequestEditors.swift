@@ -299,6 +299,7 @@ struct Caption: View {
 
     var body: some View {
         Label(text, systemImage: isWarning ? "exclamationmark.triangle" : "info.circle")
+            .symbolRenderingMode(.hierarchical)
             .font(.callout)
             .foregroundStyle(isWarning ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
             .fixedSize(horizontal: false, vertical: true)

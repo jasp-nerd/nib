@@ -44,6 +44,40 @@ cp "$BIN_PATH/Nib" "$CONTENTS/MacOS/Nib"
 cp App/Info.plist "$CONTENTS/Info.plist"
 printf 'APPL????' > "$CONTENTS/PkgInfo"
 
+# The app icon.
+#
+# `App/AppIcon.icon` is an Icon Composer package -- a directory holding `icon.json` and the layer
+# art. `actool` turns it into two things: `AppIcon.icns`, which is what the Dock and Finder draw,
+# and `Assets.car`, which holds the *layered* form macOS 26 re-renders from when the user switches
+# to dark, tinted or clear icons. Ship the icns alone and the icon is a flat picture that ignores
+# all three.
+#
+# Skipped rather than fatal when actool is missing, because this script's whole reason to exist is
+# building with Command Line Tools only -- see the header. An iconless build still runs.
+if command -v actool >/dev/null 2>&1 && [ -d App/AppIcon.icon ]; then
+    echo "==> compiling app icon"
+    # `--optimization space` is free: measured 1668 KB -> 1480 KB with every icon size and all
+    # three appearance stacks still present, so it is better compression rather than fewer assets.
+    # The trade it names -- slower asset lookup -- does not apply to an app icon, which is read
+    # once by the Dock and never by us.
+    actool --output-format human-readable-text --notices --warnings \
+        --app-icon AppIcon --platform macosx --minimum-deployment-target 26.0 \
+        --optimization space \
+        --output-partial-info-plist "$(mktemp -t nibicon)" \
+        --compile "$CONTENTS/Resources" App/AppIcon.icon 2>&1 | grep -vE "^/\*|^$" | sed 's/^/    /' || true
+
+    # `actool` reports the icon through a partial plist that Xcode merges for us. On this path
+    # there is no Xcode to do the merging, so the two keys are written directly. Both are needed:
+    # `CFBundleIconFile` is what Finder reads from the bundle, `CFBundleIconName` is what points
+    # AppKit at the layered version in Assets.car.
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" \
+        "$CONTENTS/Info.plist" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" \
+        "$CONTENTS/Info.plist" >/dev/null 2>&1 || true
+else
+    echo "==> app icon skipped (no actool)"
+fi
+
 # SwiftPM emits .bundle directories for targets that declare resources. Copy any that exist so
 # Bundle.module keeps working inside the app.
 for bundle in "$BIN_PATH"/*.bundle; do

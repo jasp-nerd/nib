@@ -1,0 +1,34 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "extended-srgb:0.61569,0.56471,0.97255,1.00000",
+      "extended-srgb:0.42745,0.35294,0.87843,1.00000"
+    ]
+  },
+  "fill-specializations" : [
+    {
+      "appearance" : "dark",
+      "value" : {
+        "linear-gradient" : [
+          "extended-srgb:0.43922,0.38431,0.83922,1.00000",
+          "extended-srgb:0.24706,0.19608,0.56863,1.00000"
+        ]
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : { "solid" : "extended-srgb:1.00000,1.00000,1.00000,1.00000" },
+          "image-name" : "nib-mark.svg",
+          "name" : "Nib"
+        }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "specular" : true,
+      "translucency" : { "enabled" : true, "value" : 0.5 }
+    }
+  ],
+  "supported-platforms" : { "circles" : [ ], "squares" : [ "macOS" ] }
+}
