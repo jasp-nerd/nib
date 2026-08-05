@@ -7,7 +7,7 @@ cask "nib" do
   desc "Tiny, fully native macOS API client"
   homepage "https://github.com/jasp-nerd/nib"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "Nib.app"
 
