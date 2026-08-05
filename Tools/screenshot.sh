@@ -11,7 +11,7 @@
 # collection, the same request and the same response. A screenshot that depends on whatever
 # happened to be on screen is a screenshot you cannot retake.
 #
-#   ./Tools/screenshot.sh                 # default backdrop
+#   ./Tools/screenshot.sh                 # default collection and backdrop
 #   BACKDROP=/path/to/image.png ./Tools/screenshot.sh
 #
 # Needs ImageMagick (brew install imagemagick).
@@ -20,14 +20,16 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP="dist/Nib.app/Contents/MacOS/Nib"
-FIXTURE="${NIB_SCREENSHOT_COLLECTION:-}"
+# Defaults to the fixture in this repository, so the script works on a fresh clone. Point
+# NIB_SCREENSHOT_COLLECTION somewhere else to shoot a different collection.
+FIXTURE="${NIB_SCREENSHOT_COLLECTION:-Tools/DemoCollection}"
 OUT_DOCS="docs/screenshot.png"
 OUT_SITE="website/screenshot.png"
 PORT=8795
 
 command -v magick >/dev/null || { echo "needs ImageMagick: brew install imagemagick"; exit 1; }
 [ -x "$APP" ] || { echo "no build — run: ./Tools/build-app.sh --release"; exit 1; }
-[ -n "$FIXTURE" ] || { echo "set NIB_SCREENSHOT_COLLECTION to a collection folder"; exit 1; }
+[ -d "$FIXTURE" ] || { echo "no collection at $FIXTURE"; exit 1; }
 
 cleanup() {
     pkill -f "dist/Nib.app" 2>/dev/null || true

@@ -54,6 +54,19 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k runner build.keychain >/dev/null
           rm -f /tmp/nib.p12
 
+      # The version is declared in the tag, in Info.plist, on the website and in the tap. Only
+      # the cask is rewritten automatically, so the other three drift. Catch it here rather than
+      # shipping an app whose About box disagrees with the release it came from.
+      - name: Check Info.plist matches the tag
+        run: |
+          PLIST=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" App/Info.plist)
+          WANT="${{ steps.version.outputs.version }}"
+          echo "tag says $WANT, Info.plist says $PLIST"
+          [ "$PLIST" = "$WANT" ] || {
+              echo "::error::App/Info.plist is $PLIST but the tag is v$WANT. Bump it and re-tag."
+              exit 1
+          }
+
       - name: Build
         run: ./Tools/build-app.sh --release
 

@@ -1,0 +1,30 @@
+{
+  "auth" : {
+    "type" : "inherit"
+  },
+  "body" : {
+    "type" : "none"
+  },
+  "formatVersion" : 1,
+  "headers" : [
+    {
+      "enabled" : true,
+      "name" : "Authorization",
+      "value" : "Bearer {{API_TOKEN}}"
+    }
+  ],
+  "id" : "01KZ9K2A4FV9M02G9XNE29LIST",
+  "method" : "GET",
+  "params" : [
+
+  ],
+  "settings" : {
+    "followRedirects" : true,
+    "maximumRedirects" : 10,
+    "preserveMethodOnRedirect" : false,
+    "sendBodyOnGet" : false,
+    "timeoutMilliseconds" : 30000,
+    "verifyTLS" : true
+  },
+  "url" : "{{baseUrl}}/users"
+}

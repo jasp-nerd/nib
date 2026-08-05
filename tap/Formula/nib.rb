@@ -1,7 +1,7 @@
 class Nib < Formula
   desc "Tiny, fully native macOS API client"
   homepage "https://github.com/jasp-nerd/nib"
-  url "https://github.com/jasp-nerd/nib/archive/refs/tags/v0.1.0.tar.gz"
+  url "https://github.com/jasp-nerd/nib/archive/refs/tags/v0.1.1.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "AGPL-3.0-only"
   head "https://github.com/jasp-nerd/nib.git", branch: "main"

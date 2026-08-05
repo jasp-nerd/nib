@@ -1,0 +1,14 @@
+{
+  "auth": {
+    "type": "none"
+  },
+  "formatVersion": 1,
+  "id": "01KZ9K2A4E5FQYT3B97NNPK3MK",
+  "name": "Acme API",
+  "order": [
+    "Hello",
+    "List users",
+    "Create user"
+  ],
+  "variables": []
+}
