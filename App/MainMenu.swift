@@ -59,6 +59,10 @@ enum MainMenu {
             target: target)
         menu.addItem(.separator())
         add(
+            menu, "Import from Postman…", #selector(AppDelegate.importFromPostman(_:)), key: "i",
+            modifiers: [.command, .shift], target: target)
+        menu.addItem(.separator())
+        add(
             menu, "Send Request", #selector(AppDelegate.sendRequest(_:)), key: "\r",
             target: target)
         add(

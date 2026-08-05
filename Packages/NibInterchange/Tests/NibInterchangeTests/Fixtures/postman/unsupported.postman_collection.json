@@ -1,0 +1,54 @@
+{
+  "info": {
+    "name": "Unsupported",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "OAuth 2.0 request",
+      "request": {
+        "method": "GET",
+        "url": "https://example.com/oauth",
+        "auth": {
+          "type": "oauth2",
+          "oauth2": [
+            { "key": "accessToken", "value": "tok", "type": "string" },
+            { "key": "grant_type", "value": "authorization_code", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "AWS signed request",
+      "request": {
+        "method": "GET",
+        "url": "https://example.com/aws",
+        "auth": {
+          "type": "awsv4",
+          "awsv4": [{ "key": "region", "value": "eu-west-1", "type": "string" }]
+        }
+      }
+    },
+    {
+      "name": "Binary body with no file",
+      "request": {
+        "method": "POST",
+        "url": "https://example.com/upload",
+        "body": { "mode": "file", "file": { "src": null } }
+      }
+    },
+    {
+      "name": "GET with body pruning disabled",
+      "protocolProfileBehavior": { "disableBodyPruning": true },
+      "request": {
+        "method": "GET",
+        "url": "https://example.com/search",
+        "body": { "mode": "raw", "raw": "{\"q\":\"swift\"}" }
+      }
+    },
+    {
+      "name": "Item that is neither",
+      "description": "no request and no item"
+    }
+  ]
+}

@@ -18,6 +18,13 @@ public struct HTTPRequestSpec: Sendable, Hashable, Codable {
     public var auth: AuthSpec
     public var settings: RequestSettings
 
+    /// Imported data Nib cannot execute — Postman scripts, OAuth 2.0 config, proxy settings.
+    ///
+    /// Round-tripped untouched through save and load, and reported at import time. This is what makes
+    /// "an import never silently drops anything" true, and it makes a future scripts feature purely
+    /// additive: the data is already there.
+    public var preserved: [String: JSONValue]?
+
     public init(
         method: HTTPMethod = .get,
         url: String = "",
@@ -25,7 +32,8 @@ public struct HTTPRequestSpec: Sendable, Hashable, Codable {
         headers: [HeaderField] = [],
         body: BodySpec = .none,
         auth: AuthSpec = .inherit,
-        settings: RequestSettings = .default
+        settings: RequestSettings = .default,
+        preserved: [String: JSONValue]? = nil
     ) {
         self.method = method
         self.url = url
@@ -34,6 +42,7 @@ public struct HTTPRequestSpec: Sendable, Hashable, Codable {
         self.body = body
         self.auth = auth
         self.settings = settings
+        self.preserved = preserved
     }
 }
 

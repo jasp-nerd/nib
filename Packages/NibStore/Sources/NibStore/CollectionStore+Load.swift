@@ -151,7 +151,8 @@ extension CollectionStore {
             headers: file.headers,
             body: file.body.body(withContents: contents),
             auth: file.auth,
-            settings: file.settings
+            settings: file.settings,
+            preserved: file.preserved
         )
 
         return RequestNode(id: NodeID(rawValue: file.id), name: name, spec: spec)

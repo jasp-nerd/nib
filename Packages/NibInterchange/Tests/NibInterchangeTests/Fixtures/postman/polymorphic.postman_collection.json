@@ -1,0 +1,70 @@
+{
+  "info": {
+    "name": "Polymorphic",
+    "schema": "https://schema.postman.com/json/collection/v2.1.0/collection.json",
+    "description": { "content": "Description as an object", "type": "text/plain" }
+  },
+  "item": [
+    {
+      "name": "URL as a bare string",
+      "request": { "method": "GET", "url": "https://example.com/a" }
+    },
+    {
+      "name": "Request as a bare string",
+      "request": "https://example.com/bare"
+    },
+    {
+      "name": "Host and path as strings",
+      "request": {
+        "method": "GET",
+        "url": { "protocol": "https", "host": "example.com", "path": "one/two", "port": "8443" }
+      }
+    },
+    {
+      "name": "Headers as a raw blob",
+      "request": {
+        "method": "GET",
+        "url": "https://example.com/b",
+        "header": "Accept: application/json\nX-Trace: abc"
+      }
+    },
+    {
+      "name": "Numeric and bool header values",
+      "request": {
+        "method": "GET",
+        "url": "https://example.com/c",
+        "header": [
+          { "key": "X-Count", "value": 42 },
+          { "key": "X-Flag", "value": true }
+        ]
+      }
+    },
+    {
+      "name": "Script as one string",
+      "event": [{ "listen": "test", "script": { "exec": "console.log(1);\nconsole.log(2);" } }],
+      "request": { "method": "GET", "url": "https://example.com/d" }
+    },
+    {
+      "name": "GraphQL",
+      "request": {
+        "method": "POST",
+        "url": "https://example.com/graphql",
+        "body": {
+          "mode": "graphql",
+          "graphql": { "query": "query { me { id } }", "variables": "{\"id\":7}" }
+        }
+      }
+    },
+    {
+      "name": "Path as objects",
+      "request": {
+        "method": "GET",
+        "url": { "host": ["example", "com"], "path": [{ "value": "x" }, { "value": "y" }] }
+      }
+    },
+    {
+      "name": "Unnamed item has no name field",
+      "request": { "method": "GET", "url": "https://example.com/e" }
+    }
+  ]
+}

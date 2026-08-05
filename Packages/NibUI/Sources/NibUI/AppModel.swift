@@ -14,6 +14,7 @@ public final class AppModel {
     public let engine: HTTPEngine
     public var session: RequestSession
     public let collectionModel = CollectionModel()
+    public let importCoordinator: ImportCoordinator
 
     /// Whether the Cmd-K switcher is showing.
     public var isPalettePresented = false
@@ -21,6 +22,7 @@ public final class AppModel {
     public init() {
         let engine = HTTPEngine()
         self.engine = engine
+        importCoordinator = ImportCoordinator(collectionModel: collectionModel)
         session = RequestSession(
             spec: HTTPRequestSpec(method: .get, url: ""),
             scope: VariableScope(),

@@ -99,6 +99,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             report("Cmd-K 'swift': \(matches.map(\.text))")
 
             // Select the first request and send it, exercising the whole chain.
+            // Optional second stage: import a Postman export into the collection we just opened.
+            if let importPath = ProcessInfo.processInfo.environment["NIB_SELFTEST_IMPORT"] {
+                await model.importCoordinator.importFiles([URL(fileURLWithPath: importPath)])
+                if let failure = model.importCoordinator.failure {
+                    report("IMPORT FAILED: \(failure)")
+                } else if let imported = model.importCoordinator.report {
+                    report("imported collections: \(imported.collectionNames)")
+                    report("imported environments: \(imported.environmentNames)")
+                    report("imported requests: \(imported.requestCount)")
+                    for diagnostic in imported.diagnostics {
+                        report("  [\(diagnostic.severity)] \(diagnostic.path): \(diagnostic.message)")
+                    }
+                }
+                report("tree now: \(collectionModel.collection?.children.map(\.name) ?? [])")
+                report("requests now: \(collectionModel.collection?.allRequests.count ?? 0)")
+            }
+
             report("selected: \(collectionModel.selectedRequest?.name ?? "<none>")")
             model.loadSelectedRequest()
             report("session url: \(model.session.spec.url)")
@@ -215,6 +232,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await model.saveSelectedRequest() }
     }
 
+    @objc func importFromPostman(_ sender: Any?) {
+        guard let model else { return }
+        Task { await model.importCoordinator.promptToImport() }
+    }
+
     @objc func showPalette(_ sender: Any?) {
         model?.isPalettePresented = true
     }
@@ -245,7 +267,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return model.clipboardHoldsCurlCommand
         case #selector(saveRequest(_:)):
             return model.canSaveSelectedRequest
-        case #selector(closeCollection(_:)), #selector(showPalette(_:)):
+        case #selector(closeCollection(_:)), #selector(showPalette(_:)),
+            #selector(importFromPostman(_:)):
             return model.collectionModel.isOpen
         case #selector(copyAsCurl(_:)), #selector(copyAsCurlRedacted(_:)):
             return !model.session.spec.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

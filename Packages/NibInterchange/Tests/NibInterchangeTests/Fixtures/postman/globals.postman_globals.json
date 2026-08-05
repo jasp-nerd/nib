@@ -1,0 +1,5 @@
+{
+  "id": "9999",
+  "values": [{ "key": "globalKey", "value": "gv", "type": "default", "enabled": true }],
+  "_postman_variable_scope": "globals"
+}

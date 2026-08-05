@@ -18,6 +18,32 @@ public struct SidebarContent: View {
             .onChange(of: model.collectionModel.selectedRequestID) {
                 model.loadSelectedRequest()
             }
+            // The whole sidebar is a drop target, not a small area to aim at -- dropping an export is
+            // the gesture the launch video shows.
+            .importDropTarget(model.importCoordinator)
+            // `isPresented` rather than `sheet(item:)`, because `report` is `private(set)` -- the
+            // coordinator owns when a report exists, and the view only says when it has been read.
+            .sheet(
+                isPresented: .init(
+                    get: { model.importCoordinator.report != nil },
+                    set: { if !$0 { model.importCoordinator.dismissReport() } })
+            ) {
+                if let report = model.importCoordinator.report {
+                    ImportReportSheet(report: report) {
+                        model.importCoordinator.dismissReport()
+                    }
+                }
+            }
+            .alert(
+                "Could not import",
+                isPresented: .init(
+                    get: { model.importCoordinator.failure != nil },
+                    set: { if !$0 { model.importCoordinator.dismissReport() } })
+            ) {
+                Button("OK") { model.importCoordinator.dismissReport() }
+            } message: {
+                Text(model.importCoordinator.failure ?? "")
+            }
     }
 }
 

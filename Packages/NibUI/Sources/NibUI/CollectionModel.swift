@@ -8,6 +8,11 @@ import Observation
 ///
 /// Owns the store and the watcher so `AppModel` stays about the app rather than about files.
 @Observable
+// The length limit exists to catch a type that has grown too many responsibilities. This one has
+// exactly one -- the open collection and everything that reads or writes it. Splitting it across
+// files was tried and fought `private`/`private(set)` on the observable state, which is
+// encapsulation worth more than a line count.
+// swiftlint:disable:next type_body_length
 public final class CollectionModel {
 
     public private(set) var collection: NibCore.Collection?
@@ -189,6 +194,71 @@ public final class CollectionModel {
         }
     }
 
+    /// Merge imported collections and environments into the open one.
+    ///
+    /// Each imported collection becomes a folder rather than replacing the tree: someone importing a
+    /// second Postman workspace into an existing collection expects it added, not swapped. A single
+    /// imported collection whose name matches the open one is merged at the top level instead, since
+    /// nesting "Acme API" inside "Acme API" is noise.
+    public func merge(
+        collections: [NibCore.Collection],
+        environments incoming: [NibCore.Environment]
+    ) async {
+        guard var collection else { return }
+
+        for imported in collections {
+            if collections.count == 1, imported.name == collection.name {
+                collection.children.append(contentsOf: imported.children)
+                collection.variables = Self.mergedVariables(
+                    collection.variables, imported.variables)
+                if collection.auth == .none { collection.auth = imported.auth }
+            } else {
+                collection.children.append(
+                    .folder(
+                        FolderNode(
+                            name: Self.uniqueName(imported.name, among: collection.children),
+                            children: imported.children,
+                            auth: imported.auth,
+                            variables: imported.variables)))
+            }
+        }
+
+        for environment in incoming {
+            if let index = environments.firstIndex(where: { $0.name == environment.name }) {
+                environments[index].variables = Self.mergedVariables(
+                    environments[index].variables, environment.variables)
+            } else {
+                environments.append(environment)
+            }
+        }
+
+        self.collection = collection
+        fuzzyCandidates = collection.fuzzyCandidates()
+        if selectedRequestID == nil {
+            selectedRequestID = collection.allRequests.first?.request.id
+        }
+        await save()
+    }
+
+    /// Existing values win. An import should not silently overwrite a value someone has already tuned.
+    private static func mergedVariables(
+        _ existing: [EnvironmentVariable],
+        _ incoming: [EnvironmentVariable]
+    ) -> [EnvironmentVariable] {
+        var result = existing
+        let known = Set(existing.map(\.key))
+        result.append(contentsOf: incoming.filter { !known.contains($0.key) })
+        return result
+    }
+
+    private static func uniqueName(_ name: String, among nodes: [CollectionNode]) -> String {
+        let taken = Set(nodes.map(\.name))
+        guard taken.contains(name) else { return name }
+        var suffix = 2
+        while taken.contains("\(name) \(suffix)") { suffix += 1 }
+        return "\(name) \(suffix)"
+    }
+
     public func addRequest(named name: String = "New request") async {
         guard var collection else { return }
         let request = RequestNode(name: name, spec: HTTPRequestSpec(url: ""))
@@ -298,7 +368,7 @@ public final class CollectionModel {
 
     // MARK: - Recents
 
-    private static let recentsKey = "RecentCollections"
+    static let recentsKey = "RecentCollections"
 
     private func rememberRecent(_ url: URL) {
         var recents = Self.recentCollections()

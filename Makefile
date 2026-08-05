@@ -35,6 +35,7 @@ endif
 .PHONY: help
 help:
 	@echo "make build      - build every package"
+	@echo "make refresh    - touch sources so SwiftPM notices new files"
 	@echo "make test       - run every package's tests"
 	@echo "make check      - boundaries + lint + test + size  (what CI runs)"
 	@echo ""
@@ -52,15 +53,22 @@ help:
 	@echo "make doctor     - what the local toolchain can and cannot do"
 	@echo "make clean      - remove build artifacts"
 
+# SwiftPM caches each target's source list and does not always notice a *newly created* file --
+# the build then fails with "cannot find type X in scope" for a type that plainly exists. Touching
+# the sources first costs nothing and removes a genuinely baffling failure mode.
+.PHONY: refresh
+refresh:
+	@find App Packages -name '*.swift' -not -path '*/.build/*' -exec touch {} +
+
 .PHONY: build
-build:
+build: refresh
 	@set -e; for p in $(PACKAGES); do \
 		echo "==> building $$p"; \
 		swift build --package-path Packages/$$p; \
 	done
 
 .PHONY: test
-test:
+test: refresh
 	@set -e; for p in $(PACKAGES); do \
 		if [ -n "$$(find Packages/$$p/Tests -name '*.swift' 2>/dev/null)" ]; then \
 			echo "==> testing $$p"; \

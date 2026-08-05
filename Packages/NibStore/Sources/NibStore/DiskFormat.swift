@@ -68,9 +68,10 @@ enum DiskFormat {
         /// Anything imported that Nib cannot execute — Postman scripts, oauth2 config, proxy
         /// settings. Round-tripped untouched so "an import never silently drops anything" is
         /// literally true, and so adding scripts later is a purely additive change.
-        var preserved: [String: AnyCodableValue]?
+        var preserved: [String: JSONValue]?
 
         init(_ request: RequestNode, bodyFilename: String?) {
+            preserved = request.spec.preserved
             formatVersion = StoreLocations.formatVersion
             id = request.id.rawValue
             method = request.spec.method.rawValue
@@ -155,58 +156,6 @@ enum DiskFormat {
             id = environment.id.rawValue
             name = environment.name
             variables = environment.variables
-        }
-    }
-}
-
-/// A JSON value of unknown shape, for the `preserved` block.
-///
-/// Deliberately minimal: it only has to round-trip bytes faithfully, not be pleasant to consume.
-/// Nothing in Nib reads inside a preserved block — that is the point.
-enum AnyCodableValue: Codable, Hashable, Sendable {
-    case null
-    case bool(Bool)
-    case number(Double)
-    case string(String)
-    case array([AnyCodableValue])
-    case object([String: AnyCodableValue])
-
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            self = .null
-        } else if let value = try? container.decode(Bool.self) {
-            self = .bool(value)
-        } else if let value = try? container.decode(Double.self) {
-            self = .number(value)
-        } else if let value = try? container.decode(String.self) {
-            self = .string(value)
-        } else if let value = try? container.decode([AnyCodableValue].self) {
-            self = .array(value)
-        } else if let value = try? container.decode([String: AnyCodableValue].self) {
-            self = .object(value)
-        } else {
-            throw DecodingError.dataCorruptedError(
-                in: container, debugDescription: "Unsupported JSON value")
-        }
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .null: try container.encodeNil()
-        case .bool(let value): try container.encode(value)
-        case .number(let value):
-            // Emit whole numbers without a decimal point, so a preserved `1` does not become `1.0`
-            // and churn the diff on every save.
-            if value == value.rounded(), abs(value) < 9_007_199_254_740_992 {
-                try container.encode(Int64(value))
-            } else {
-                try container.encode(value)
-            }
-        case .string(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .object(let value): try container.encode(value)
         }
     }
 }
