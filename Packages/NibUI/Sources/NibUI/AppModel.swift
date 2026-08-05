@@ -13,15 +13,31 @@ import Observation
 @Observable
 public final class AppModel {
     public let engine: HTTPEngine
-    public var session: RequestSession
     public let collectionModel = CollectionModel()
     public let importCoordinator: ImportCoordinator
+
+    /// Open tabs, in strip order. Never empty — closing the last one opens a fresh one, because a
+    /// window with no request in it has nothing to show and no way back.
+    public private(set) var tabs: [RequestSession] = []
+    public private(set) var activeTabID: UUID = UUID()
+
+    /// The tab everything else means when it says "the request".
+    ///
+    /// Computed rather than stored so there is exactly one source of truth. A stored `session`
+    /// alongside `tabs` is two places to update and one of them will be missed.
+    public var session: RequestSession {
+        tabs.first { $0.id == activeTabID } ?? tabs[0]
+    }
 
     /// Whether the Cmd-K switcher is showing.
     public var isPalettePresented = false
 
     /// Whether the environment editor is showing.
     public var isEnvironmentEditorPresented = false
+
+    /// Incremented by ⌘L. A counter rather than a flag because the same request can be made twice
+    /// in a row, and a flag that is already `true` produces no change for the view to observe.
+    public var focusURLRequests = 0
 
     /// Past responses for the selected request, newest first.
     public private(set) var history: [HistoryStore.Entry] = []
@@ -35,15 +51,80 @@ public final class AppModel {
         // Optional rather than fatal: a machine where Application Support cannot be created still
         // gets a working API client, just without history.
         historyStore = try? HistoryStore()
-        session = RequestSession(
+
+        let first = RequestSession(
             spec: HTTPRequestSpec(method: .get, url: ""),
             scope: VariableScope(),
             engine: engine
         )
-        session.onFinished = { [weak self] result, plan in
-            self?.recordInHistory(result, plan: plan)
+        tabs = [first]
+        activeTabID = first.id
+        adopt(first)
+    }
+
+    // MARK: - Tabs
+
+    /// Wire a session up to the model. Every tab needs this, so it lives in one place rather than
+    /// being repeated at each creation site — a tab that quietly records no history because
+    /// somebody forgot a line is exactly the kind of bug that survives review.
+    private func adopt(_ tab: RequestSession) {
+        tab.onFinished = { [weak self, weak tab] result, plan in
+            guard let self, let tab, tab.id == activeTabID else { return }
+            recordInHistory(result, plan: plan)
         }
     }
+
+    @discardableResult
+    public func newTab() -> RequestSession {
+        let tab = RequestSession(
+            spec: HTTPRequestSpec(method: .get, url: ""), scope: VariableScope(), engine: engine)
+        adopt(tab)
+        tabs.append(tab)
+        select(tab.id)
+        return tab
+    }
+
+    public func select(_ id: UUID) {
+        guard tabs.contains(where: { $0.id == id }) else { return }
+        activeTabID = id
+        Task { await reloadHistory() }
+    }
+
+    /// Close a tab, keeping the selection somewhere sensible.
+    ///
+    /// Closing the active tab moves to its neighbour rather than to the first tab, which is what
+    /// every editor does and what the muscle memory expects.
+    public func closeTab(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+
+        // An in-flight request in a closed tab has nowhere to deliver its response.
+        tabs[index].cancel()
+        tabs.remove(at: index)
+
+        if tabs.isEmpty {
+            newTab()
+            return
+        }
+        if activeTabID == id {
+            select(tabs[min(index, tabs.count - 1)].id)
+        }
+    }
+
+    public func selectTab(at index: Int) {
+        guard tabs.indices.contains(index) else { return }
+        select(tabs[index].id)
+    }
+
+    public func selectNextTab(by offset: Int) {
+        guard let current = tabs.firstIndex(where: { $0.id == activeTabID }), tabs.count > 1 else {
+            return
+        }
+        // Wrapping, so Cmd-Shift-] on the last tab goes back to the first.
+        let next = (current + offset + tabs.count) % tabs.count
+        select(tabs[next].id)
+    }
+
+    public var canCloseTab: Bool { tabs.count > 1 }
 
     // MARK: - History
 
@@ -52,7 +133,7 @@ public final class AppModel {
     /// Only for saved requests. An unsaved scratch request has no stable id, so there would be
     /// nothing to file it under and nothing to prune it with later.
     private func recordInHistory(_ result: SendEvent.Result, plan: SendPlan) {
-        guard let historyStore, let requestID = collectionModel.selectedRequestID,
+        guard let historyStore, let requestID = session.loadedRequestID,
             let response = session.response
         else { return }
 
@@ -76,7 +157,7 @@ public final class AppModel {
     }
 
     public func reloadHistory() async {
-        guard let historyStore, let requestID = collectionModel.selectedRequestID else {
+        guard let historyStore, let requestID = session.loadedRequestID else {
             history = []
             return
         }
@@ -94,9 +175,6 @@ public final class AppModel {
 
     // MARK: - Collection
 
-    /// Which request the session currently holds, so a redundant load can be skipped.
-    private var loadedRequestID: NodeID?
-
     /// Load the selected request into the editing session.
     ///
     /// The session is edited in place rather than replaced, because the panes captured the object once
@@ -109,9 +187,11 @@ public final class AppModel {
     /// nothing. Comparing the id first makes the redundant call free.
     public func loadSelectedRequest() {
         guard let request = collectionModel.selectedRequest else { return }
-        guard request.id != loadedRequestID else { return }
+        // Per tab, not per model: two tabs can legitimately hold the same request, and a shared
+        // latch would stop the second one ever loading it.
+        guard request.id != session.loadedRequestID else { return }
 
-        loadedRequestID = request.id
+        session.loadedRequestID = request.id
         session.replace(with: request.spec)
         refreshScope()
         Task { await reloadHistory() }
@@ -131,13 +211,15 @@ public final class AppModel {
 
     /// Write the edited request back to disk.
     public func saveSelectedRequest() async {
-        guard var request = collectionModel.selectedRequest else { return }
+        guard let id = session.loadedRequestID,
+            var request = collectionModel.collection?.request(withID: id)
+        else { return }
         request.spec = session.spec
         await collectionModel.update(request)
     }
 
     public var canSaveSelectedRequest: Bool {
-        collectionModel.selectedRequest != nil
+        session.loadedRequestID != nil
     }
 
     /// Wired to Cmd-Return from the menu, so it works from any focused field.

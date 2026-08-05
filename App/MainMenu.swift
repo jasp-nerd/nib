@@ -20,7 +20,7 @@ enum MainMenu {
         root.addItem(appMenuItem())
         root.addItem(fileMenuItem(target: target))
         root.addItem(editMenuItem(target: target))
-        root.addItem(viewMenuItem())
+        root.addItem(viewMenuItem(target: target))
         root.addItem(windowMenuItem(app: app))
         app.mainMenu = root
     }
@@ -40,18 +40,18 @@ enum MainMenu {
 
     private static func fileMenuItem(target: AnyObject) -> NSMenuItem {
         let menu = NSMenu(title: "File")
-        add(menu, "New Request", nil, key: "n", enabled: false)
-        add(menu, "New Folder", nil, key: "N", modifiers: [.command, .shift], enabled: false)
-        menu.addItem(.separator())
-        add(menu, "Open Collection…", nil, key: "o", enabled: false)
-        add(menu, "Import…", nil, key: "I", modifiers: [.command, .shift], enabled: false)
+        add(menu, "New Tab", #selector(AppDelegate.newTab(_:)), key: "t", target: target)
+        add(menu, "New Request", #selector(AppDelegate.newRequest(_:)), key: "n", target: target)
+        add(
+            menu, "New Folder", #selector(AppDelegate.newFolder(_:)), key: "N",
+            modifiers: [.command, .shift], target: target)
         menu.addItem(.separator())
         add(
             menu, "Open Collection Folder…", #selector(AppDelegate.openCollection(_:)), key: "o",
             target: target)
         add(
             menu, "Close Collection", #selector(AppDelegate.closeCollection(_:)), key: "w",
-            modifiers: [.command, .shift], target: target)
+            modifiers: [.command, .shift, .option], target: target)
         menu.addItem(.separator())
         add(menu, "Save", #selector(AppDelegate.saveRequest(_:)), key: "s", target: target)
         add(
@@ -79,7 +79,10 @@ enum MainMenu {
             menu, "Copy as cURL (Redacted)", #selector(AppDelegate.copyAsCurlRedacted(_:)),
             key: "C", modifiers: [.command, .shift, .option], target: target)
         menu.addItem(.separator())
-        add(menu, "Close", #selector(NSWindow.performClose(_:)), key: "w")
+        add(menu, "Close Tab", #selector(AppDelegate.closeTab(_:)), key: "w", target: target)
+        add(
+            menu, "Close Window", #selector(NSWindow.performClose(_:)), key: "W",
+            modifiers: [.command, .shift])
         return wrap("File", menu)
     }
 
@@ -104,15 +107,28 @@ enum MainMenu {
         return wrap("Edit", menu)
     }
 
-    private static func viewMenuItem() -> NSMenuItem {
+    private static func viewMenuItem(target: AnyObject) -> NSMenuItem {
         let menu = NSMenu(title: "View")
+        // Cmd-1 through Cmd-5 select a tab by position; beyond five, use the switcher.
+        for index in 1...5 {
+            add(
+                menu, "Tab \(index)", #selector(AppDelegate.selectTabByNumber(_:)),
+                key: "\(index)", target: target, tag: index - 1)
+        }
+        add(
+            menu, "Previous Tab", #selector(AppDelegate.previousTab(_:)), key: "[",
+            modifiers: [.command, .shift], target: target)
+        add(
+            menu, "Next Tab", #selector(AppDelegate.nextTab(_:)), key: "]",
+            modifiers: [.command, .shift], target: target)
+        menu.addItem(.separator())
         add(
             menu, "Toggle Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)),
             key: "s", modifiers: [.command, .control]
         )
         add(
-            menu, "Toggle Split Orientation", nil, key: "v", modifiers: [.command, .option],
-            enabled: false)
+            menu, "Focus URL Field", #selector(AppDelegate.focusURLField(_:)), key: "l",
+            target: target)
         menu.addItem(.separator())
         add(
             menu, "Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)),
@@ -146,9 +162,11 @@ enum MainMenu {
         key: String = "",
         modifiers: NSEvent.ModifierFlags = [.command],
         target: AnyObject? = nil,
-        enabled: Bool = true
+        enabled: Bool = true,
+        tag: Int = 0
     ) {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.tag = tag
         if !key.isEmpty {
             item.keyEquivalentModifierMask = modifiers
         }

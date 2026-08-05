@@ -13,6 +13,11 @@ public final class RequestSession: Identifiable {
 
     public var spec: HTTPRequestSpec
     public var scope: VariableScope
+    /// Which saved request this tab is showing, if any. `nil` for a scratch tab.
+    ///
+    /// Lives on the tab rather than on the model because two tabs may hold the same request, and
+    /// because "save" and "history" both need to know which one *this* tab is editing.
+    public var loadedRequestID: NodeID?
     /// Auth inherited from the enclosing folder or collection, used when `spec.auth` is `.inherit`.
     public var inheritedAuth: AuthSpec = .none
 

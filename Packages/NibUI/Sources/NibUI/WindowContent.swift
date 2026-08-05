@@ -57,6 +57,9 @@ public struct RequestContent: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            TabStrip(model: model)
+            Divider()
+
             if model.collectionModel.isOpen {
                 EnvironmentBar(
                     model: model.collectionModel,
@@ -65,7 +68,10 @@ public struct RequestContent: View {
                 Divider()
             }
 
-            RequestPane(session: model.session)
+            // Keyed by tab id so switching tabs replaces the pane's state rather than carrying
+            // the previous tab's selected tab and focus across.
+            RequestPane(session: model.session, focusURLRequests: model.focusURLRequests)
+                .id(model.activeTabID)
                 // Attached here rather than to the VStack: two `.sheet` modifiers on one view
                 // fight over the same presentation slot, and the second one silently never shows.
                 .sheet(isPresented: Bindable(model).isPalettePresented) {

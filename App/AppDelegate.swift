@@ -95,6 +95,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model?.isEnvironmentEditorPresented = true
     }
 
+    // MARK: Tabs
+
+    @objc func newTab(_ sender: Any?) {
+        model?.newTab()
+    }
+
+    @objc func closeTab(_ sender: Any?) {
+        guard let model else { return }
+        // The last tab closes the window rather than leaving an empty one, which is what every
+        // tabbed app does and what Cmd-W is expected to eventually do.
+        guard model.canCloseTab else {
+            mainWindowController?.window?.performClose(nil)
+            return
+        }
+        model.closeTab(model.activeTabID)
+    }
+
+    @objc func selectTabByNumber(_ sender: Any?) {
+        guard let item = sender as? NSMenuItem else { return }
+        model?.selectTab(at: item.tag)
+    }
+
+    @objc func previousTab(_ sender: Any?) {
+        model?.selectNextTab(by: -1)
+    }
+
+    @objc func nextTab(_ sender: Any?) {
+        model?.selectNextTab(by: 1)
+    }
+
+    // MARK: Collection
+
+    @objc func newRequest(_ sender: Any?) {
+        guard let model else { return }
+        Task { await model.collectionModel.addRequest() }
+    }
+
+    @objc func newFolder(_ sender: Any?) {
+        guard let model else { return }
+        Task { await model.collectionModel.addFolder() }
+    }
+
+    @objc func focusURLField(_ sender: Any?) {
+        model?.focusURLRequests += 1
+    }
+
     @objc func findInResponse(_ sender: Any?) {
         mainWindowController?.responseController?.showFindBar()
     }
@@ -126,8 +172,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case #selector(saveRequest(_:)):
             return model.canSaveSelectedRequest
         case #selector(closeCollection(_:)), #selector(showPalette(_:)),
-            #selector(importFromPostman(_:)), #selector(showEnvironments(_:)):
+            #selector(importFromPostman(_:)), #selector(showEnvironments(_:)),
+            #selector(newRequest(_:)), #selector(newFolder(_:)):
             return model.collectionModel.isOpen
+        case #selector(selectTabByNumber(_:)):
+            return (item.tag) < model.tabs.count
+        case #selector(previousTab(_:)), #selector(nextTab(_:)):
+            return model.tabs.count > 1
         case #selector(findInResponse(_:)):
             return mainWindowController?.responseController?.canFind == true
         case #selector(copyAsCurl(_:)), #selector(copyAsCurlRedacted(_:)):

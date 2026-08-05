@@ -8,6 +8,8 @@ import SwiftUI
 /// badges, bulk edit — land alongside the collection work, once there is something to badge.
 public struct RequestPane: View {
     @Bindable var session: RequestSession
+    /// Bumped by ⌘L from the menu. Zero when the pane is used without a model behind it.
+    var focusURLRequests = 0
 
     @State private var tab: Tab = .headers
     @FocusState private var urlFocused: Bool
@@ -21,8 +23,9 @@ public struct RequestPane: View {
         var id: String { rawValue }
     }
 
-    public init(session: RequestSession) {
+    public init(session: RequestSession, focusURLRequests: Int = 0) {
         self.session = session
+        self.focusURLRequests = focusURLRequests
     }
 
     public var body: some View {
@@ -61,6 +64,7 @@ public struct RequestPane: View {
             }
         }
         .onAppear { urlFocused = true }
+        .onChange(of: focusURLRequests) { urlFocused = true }
     }
 
     /// A count badge on the tabs that have content, so nothing is hidden behind a tab you had no
