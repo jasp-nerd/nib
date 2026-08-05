@@ -383,8 +383,9 @@ footer a { color: var(--dim); }
   <div class="wrap">
     <h2>Install it in one line.</h2>
     <pre>brew install nib-app/tap/nib</pre>
-    <p class="note">Nib is self-signed rather than notarized, and the tap clears the quarantine flag as part of installing. If you would rather download the zip from GitHub, run <code>xattr -dr com.apple.quarantine /Applications/Nib.app</code> once afterwards and macOS will stop complaining.</p>
-    <p class="note">It asks for no system permissions at all. There is no Accessibility prompt, no Input Monitoring prompt, and no Screen Recording prompt, because none of them are needed.</p>
+    <p class="note">That is the whole thing. The tap clears the quarantine flag while it installs, so Nib opens normally afterwards.</p>
+    <p class="note">Without Homebrew, download the zip from GitHub and drag Nib into Applications. macOS will block it the first time, because Nib is signed but not notarized by Apple. Either run <code>xattr -dr com.apple.quarantine /Applications/Nib.app</code> once, or open System Settings, then Privacy &amp; Security, where macOS offers an "Open Anyway" button for the app it just blocked. Notarizing would remove that step for everyone; it costs $99 a year and will happen if the project earns it.</p>
+    <p class="note">Nib asks for no system permissions at all. There is no Accessibility prompt, no Input Monitoring prompt and no Screen Recording prompt, because none of them are needed.</p>
   </div>
 </section>
 

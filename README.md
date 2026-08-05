@@ -39,11 +39,14 @@ For a sense of scale, Postman 12.22.3 for Apple silicon is 353 MB installed, and
 brew install nib-app/tap/nib
 ```
 
-Nib is self-signed rather than notarized, so macOS quarantines it. The tap clears that flag during install and you shouldn't notice. If you'd rather grab the zip from the releases page, run this once afterwards:
+That's the whole thing. The tap clears the quarantine flag while it installs, so Nib opens normally afterwards.
 
-```sh
-xattr -dr com.apple.quarantine /Applications/Nib.app
-```
+Without Homebrew, download `Nib.zip` from the releases page and drag Nib into Applications. macOS will block it the first time you open it, because Nib is signed but not notarized by Apple. Two ways past that, whichever you prefer:
+
+- Run `xattr -dr com.apple.quarantine /Applications/Nib.app` once in Terminal, or
+- Try to open Nib, then go to System Settings → Privacy & Security, where macOS offers an "Open Anyway" button for the app it just blocked.
+
+Notarizing would remove that step for everyone, and it costs $99 a year. It'll happen if the project earns it.
 
 Nib doesn't ask for any system permissions. There's no Accessibility prompt, no Input Monitoring, no Screen Recording, because it doesn't need any of them.
 
