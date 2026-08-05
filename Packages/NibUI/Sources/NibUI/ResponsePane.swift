@@ -26,58 +26,77 @@ struct ResponseChrome: View {
         }
     }
 
+    /// Status on the left, view controls on the right — on one line if they fit, on two if they do
+    /// not.
+    ///
+    /// `ViewThatFits` rather than a `GeometryReader` and a width threshold. It proposes each
+    /// candidate in order and takes the first that does not need to compress, which means the
+    /// breakpoint is *measured* rather than guessed — and it has to be measured, because the
+    /// widths involved are a status pill whose text is `200 OK` or `504 Gateway Timeout`, and a
+    /// segmented control whose metrics changed in macOS 26.
+    ///
+    /// The bug this replaces: the two pickers carried `.frame(width: 130)` and `.frame(width: 330)`
+    /// from an older layout. At 1100pt — the app's own default window size — those fixed widths
+    /// left the status group about 130pt, and it rendered as `2…  55…  50…`. A response pane that
+    /// cannot say what the status code was is not doing its one job.
     private var statusRow: some View {
-        HStack(spacing: Metrics.pane) {
-            StatusSummary(session: session)
-                // The status code, the duration and the size are the answer to the question the
-                // send was asking. They must never be the thing that gets squeezed: at 1100pt wide
-                // the two segmented controls' fixed widths left about 130pt here, which rendered as
-                // "2…  55…  50…" — a status pill that does not say the status.
-                .fixedSize()
-                .layoutPriority(1)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Metrics.pane) {
+                StatusSummary(session: session)
+                Spacer(minLength: Metrics.pane)
+                viewControls
+            }
 
-            Spacer(minLength: Metrics.row)
-
-            if session.response != nil || !model.history.isEmpty {
-                if let response = session.response, state.tab == .body, response.isPrettyPrinted,
-                    !session.state.isFailed
-                {
-                    // Only offered when there is a difference to see. On a non-JSON body Pretty and
-                    // Raw are the same text, and a toggle that does nothing is worse than no toggle.
-                    Picker("", selection: $state.showsRaw) {
-                        Text("Pretty").tag(false)
-                        Text("Raw").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                }
-
-                // No `.frame(width: 330)`. Adopting the new design explicitly asks apps to stop
-                // hard-coding control dimensions, because macOS 26 changed the metrics underneath
-                // them — a width measured against the old segmented control is now either clipping
-                // its labels or padding them. `fixedSize` asks the control how wide it wants to be
-                // and believes the answer.
-                Picker("", selection: $state.tab) {
-                    ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-
-                if let response = session.response {
-                    Button("Copy response body", systemImage: "doc.on.doc") {
-                        copyBody(response)
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.borderless)
-                    .help("Copy the body as it was received")
+            VStack(alignment: .leading, spacing: Metrics.chip) {
+                StatusSummary(session: session)
+                HStack(spacing: Metrics.pane) {
+                    Spacer(minLength: 0)
+                    viewControls
                 }
             }
         }
         .font(.callout)
         .padding(.horizontal, Metrics.pane)
         .padding(.vertical, Metrics.row)
+    }
+
+    @ViewBuilder
+    private var viewControls: some View {
+        if session.response != nil || !model.history.isEmpty {
+            if let response = session.response, state.tab == .body, response.isPrettyPrinted,
+                !session.state.isFailed
+            {
+                // Only offered when there is a difference to see. On a non-JSON body Pretty and
+                // Raw are the same text, and a toggle that does nothing is worse than no toggle.
+                Picker("", selection: $state.showsRaw) {
+                    Text("Pretty").tag(false)
+                    Text("Raw").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+            }
+
+            // No hard-coded width. Adopting the new design explicitly asks apps to stop pinning
+            // control dimensions, because macOS 26 changed the metrics underneath them: a width
+            // measured against the old segmented control now either clips its labels or pads them.
+            // `fixedSize` asks the control how wide it wants to be and believes the answer.
+            Picker("", selection: $state.tab) {
+                ForEach(ResponseTab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+
+            if let response = session.response {
+                Button("Copy response body", systemImage: "doc.on.doc") {
+                    copyBody(response)
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .help("Copy the body as it was received")
+            }
+        }
     }
 
     /// `bodyText`, not `displayText` — the hard-wrap newlines are a display concession and must not

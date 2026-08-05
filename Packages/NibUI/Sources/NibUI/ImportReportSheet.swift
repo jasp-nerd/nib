@@ -58,21 +58,16 @@ public struct ImportReportSheet: View {
         .padding(16)
     }
 
+    /// `ContentUnavailableView` is right here and wrong in the sidebar, and the difference is
+    /// simply that this sheet is 620pt wide. It is the system's "nothing further to show" layout,
+    /// and this is a 620x260 panel with one message in the middle of it — exactly its shape.
     private var clean: some View {
-        VStack(spacing: 10) {
-            Spacer()
-            Image(systemName: "sparkles")
-                .font(.system(size: 26))
-                .foregroundStyle(.tertiary)
-            Text("Everything came across.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label("Everything came across", systemImage: "sparkles")
+                .symbolRenderingMode(.hierarchical)
+        } description: {
             Text("Your requests are files in your collection folder — commit them.")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-            Spacer()
         }
-        .frame(maxWidth: .infinity)
     }
 
     /// Grouped by severity, with the ones that change behaviour first.
@@ -116,6 +111,7 @@ public struct ImportReportSheet: View {
                     systemImage: Self.icon(for: severity)
                 )
                 .font(.headline)
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Self.colour(for: severity))
 
                 Text(explanation)
@@ -135,8 +131,8 @@ public struct ImportReportSheet: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 6))
+                    .padding(Metrics.row)
+                    .background(.quaternary.opacity(0.35), in: ConcentricRectangle())
                 }
             }
         }
@@ -185,18 +181,26 @@ struct ImportDropTarget: ViewModifier {
         content
             .overlay {
                 if isTargeted {
-                    RoundedRectangle(cornerRadius: 8)
+                    // `ConcentricRectangle`, not `RoundedRectangle(cornerRadius: 8)`. This border
+                    // is drawn over the whole window, and macOS 26 made window corners noticeably
+                    // rounder — an 8pt box against a rounder window cuts across its corners, which
+                    // is the single most obvious "built for the last OS" tell there is. Concentric
+                    // corners derive their radius from the container, so the highlight follows the
+                    // window whatever the system decides that radius is.
+                    ConcentricRectangle()
                         .strokeBorder(.tint, lineWidth: 3)
                         .background(.tint.opacity(0.06))
                         .allowsHitTesting(false)
                         .overlay {
                             Label("Drop to import", systemImage: "square.and.arrow.down")
                                 .font(.headline)
-                                .padding(12)
-                                .background(.regularMaterial, in: Capsule())
+                                .padding(Metrics.pane)
+                                .background(.regularMaterial, in: .capsule)
                         }
+                        .transition(.opacity)
                 }
             }
+            .animation(.smooth(duration: 0.15), value: isTargeted)
             .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
                 Task { await handle(providers) }
                 return true

@@ -16,8 +16,6 @@
   <img src="docs/screenshot.png" width="720" alt="Nib showing a collection, an environment picker, and a highlighted JSON response">
 </p>
 
-[nib.jaspnerd.dev](https://nib.jaspnerd.dev) · [Discord](https://discord.gg/AqNR6p4zrq)
-
 Nib is about 1.6 MB on disk and sits at roughly 30 MB of memory with a collection open. It's written in Swift against AppKit and SwiftUI, it has no third-party dependencies, and there's no account to create and nothing phoning home.
 
 For a sense of scale, Postman 12.22.3 for Apple silicon is 353 MB installed, and 213 MB of that is the copy of Chromium it carries around. Both figures were measured rather than looked up; there's a note at the bottom about how.
