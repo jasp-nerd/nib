@@ -33,6 +33,27 @@ jobs:
           echo "tag=$TAG"            >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}"    >> "$GITHUB_OUTPUT"
 
+      # Import the persistent self-signed identity so releases carry a stable signature.
+      # Without it build-app.sh falls back to ad-hoc, which is regenerated every build and
+      # therefore invalidates the Keychain permission for environment secrets on every upgrade.
+      - name: Import the signing identity
+        env:
+          P12: ${{ secrets.SIGNING_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: |
+          if [ -z "$P12" ]; then echo "no signing identity configured; build-app.sh will use ad-hoc"; exit 0; fi
+          echo "$P12" | base64 --decode > /tmp/nib.p12
+          # A throwaway keychain, unlocked for this job only. Importing into the runner's login
+          # keychain would leave the key sitting in a shared default.
+          security create-keychain -p runner build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p runner build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import /tmp/nib.p12 -k build.keychain -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k runner build.keychain >/dev/null
+          rm -f /tmp/nib.p12
+
       - name: Build
         run: ./Tools/build-app.sh --release
 
@@ -96,15 +117,23 @@ jobs:
 
       # Bumping the cask is a sed and a commit, on purpose. A release process with a manual step
       # in the middle is a release process that ships a stale cask.
+      # A deploy key rather than a personal access token: it can write to the tap repository and
+      # to nothing else, which is the whole of the access this step needs.
       - name: Bump the Homebrew cask
-        if: ${{ secrets.TAP_TOKEN != '' }}
         env:
-          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+          DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
         run: |
           SHA=$(cut -d' ' -f1 sha256.txt)
           VERSION="${{ steps.version.outputs.version }}"
 
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/jasp-nerd/homebrew-nib.git" tap
+          if [ -z "$DEPLOY_KEY" ]; then echo "no tap deploy key configured; skipping the cask bump"; exit 0; fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "$DEPLOY_KEY" > ~/.ssh/tap_key
+          chmod 600 ~/.ssh/tap_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes"
+
+          git clone git@github.com:jasp-nerd/homebrew-nib.git tap
           cd tap
           sed -i '' "s/  version \".*\"/  version \"${VERSION}\"/" Casks/nib.rb
           sed -i '' "s/  sha256 \".*\"/  sha256 \"${SHA}\"/"       Casks/nib.rb
@@ -115,10 +144,10 @@ jobs:
           git push
 
       - name: Announce
-        if: ${{ secrets.DISCORD_WEBHOOK != '' }}
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
+          if [ -z "$WEBHOOK" ]; then echo "no webhook configured; not announcing"; exit 0; fi
           TAG="${{ steps.version.outputs.tag }}"
           curl -sS -H "Content-Type: application/json" -X POST "$WEBHOOK" -d @- <<EOF
           {"content": "Nib ${TAG} is out — https://github.com/${{ github.repository }}/releases/tag/${TAG}"}
