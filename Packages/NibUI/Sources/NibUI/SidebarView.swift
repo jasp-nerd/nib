@@ -213,6 +213,14 @@ private struct EmptyCollectionView: View {
             }
             .buttonStyle(.borderedProminent)
 
+            // The migration hook, on the first screen anyone sees. Someone arriving from Postman
+            // should not have to find this in a menu -- it is the reason they downloaded the app.
+            Text("Coming from Postman? Drop an export anywhere on this window.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
             if let failure = model.loadFailure {
                 Text(failure)
                     .font(.callout)

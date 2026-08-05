@@ -128,6 +128,18 @@ line granularity and line 40,000 can be highlighted without reading the previous
 removes the whole reason people reach for Highlightr, which would embed highlight.js and a JS
 runtime and roughly double the app.
 
+## Where the rest of the documentation is
+
+| | |
+|---|---|
+| [`on-disk-format.md`](on-disk-format.md) | What a collection folder looks like, and why |
+| [`environments.md`](environments.md) | The variable chain, and the Keychain |
+| [`http-fidelity.md`](http-fidelity.md) | Every place URLSession does not send what we asked |
+| [`import-curl.md`](import-curl.md) | The three cURL dialects, and what we refuse to interpret |
+| [`keyboard.md`](keyboard.md) | The full shortcut map |
+| [`performance-budget.md`](performance-budget.md) | The measured numbers and the gates on them |
+| [`signing.md`](signing.md) | Self-signing, Gatekeeper, and the notarization exit |
+
 ## Toolchain note
 
 Full Xcode is required for the `.app` target, `xcodebuild`, asset compilation, code signing,

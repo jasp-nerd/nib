@@ -1,0 +1,28 @@
+name: Feature
+description: Suggest something
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Please check the "Explicitly not in v1" list in CONTRIBUTING.md first. Scripts, a collection
+        runner, OAuth 2.0 flows, gRPC, WebSocket, mock servers, sync and accounts are all on it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that you currently cannot? Not the solution — the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What you have in mind
+  - type: checkboxes
+    id: cost
+    attributes:
+      label: Cost
+      options:
+        - label: This does not need a new dependency
+        - label: This does not need a background timer
+        - label: This does not need a system permission

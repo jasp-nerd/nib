@@ -99,15 +99,26 @@ final class ResponseBodyView: NSView {
         textView.string = text
         textView.textColor = .labelColor
         textView.scroll(.zero)
+
+        // Lay the viewport out before colouring it.
+        //
+        // Not belt and braces. `viewportRange` is nil until the viewport has been laid out at least
+        // once, and setting `string` invalidates it — so highlighting straight afterwards finds no
+        // range and silently does nothing. The self-test did not catch this because it forces
+        // layout itself; the first screenshot of the finished app did, by showing a wall of grey.
+        textView.textLayoutManager?.textViewportLayoutController.layoutViewport()
         highlightViewport()
     }
 
     @objc private func viewportMoved() {
+        // Scrolling has already laid the new viewport out; only the colours are missing.
         highlightViewport()
     }
 
     override func layout() {
         super.layout()
+        // A resize changes which lines are in the viewport and re-wraps the ones that stay.
+        textView.textLayoutManager?.textViewportLayoutController.layoutViewport()
         highlightViewport()
     }
 

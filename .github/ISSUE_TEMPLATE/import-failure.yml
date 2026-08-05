@@ -1,0 +1,36 @@
+name: Import failure
+description: A Postman or cURL import came in wrong, or not at all
+labels: [import]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        An import must never silently drop anything, so a missing request or a mangled body is
+        always a bug — including when the cause is something Nib cannot execute, which should have
+        been preserved and reported instead.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have come across, and what did
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: The import report
+      description: The text of the sheet Nib showed after the import, if there was one.
+      render: text
+  - type: textarea
+    id: source
+    attributes:
+      label: The source file
+      description: >
+        A minimal collection or cURL command that reproduces it. Please remove real hostnames and
+        credentials first — a redacted file that still fails is worth far more than a real one you
+        cannot share.
+      render: json
+  - type: input
+    id: origin
+    attributes:
+      label: Where the file came from
+      placeholder: Postman 11 collection export, Chrome devtools, Firefox, Windows cmd…

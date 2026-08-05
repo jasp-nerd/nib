@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v0.1.0"
+        required: true
+
+# NOTIFICATION: this workflow publishes. It creates a public GitHub release, pushes a commit to the
+# tap repository, and posts to Discord. Nothing here runs on a pull request.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, sign and publish
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+
+      - name: Work out the version
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG"            >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}"    >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: ./Tools/build-app.sh --release
+
+      # The size claim is in the README and on the website. A release that breaks it should not
+      # ship, and finding out here is far better than finding out from a stranger with `du`.
+      - name: Check the size budget
+        run: ./Tools/check-size.sh
+
+      # ------------------------------------------------------------------------------------
+      # Signing.
+      #
+      # Nib ships ad-hoc signed, so this is a single `codesign -s -` inside build-app.sh and
+      # there is nothing to do here. Notarizing later is deliberately a small diff confined to
+      # this file: add the Developer ID import above, then
+      #
+      #   xcrun notarytool submit dist/Nib.zip --apple-id … --team-id … --password … --wait
+      #   xcrun stapler staple dist/Nib.app
+      #
+      # and drop the `postflight` block from the cask. Nothing outside this workflow and the
+      # tap needs to change. See docs/signing.md.
+      # ------------------------------------------------------------------------------------
+
+      - name: Zip it
+        run: |
+          cd dist
+          # ditto rather than zip: it preserves the code signature and the bundle's symlinks.
+          ditto -c -k --keepParent Nib.app Nib.zip
+          shasum -a 256 Nib.zip | tee ../sha256.txt
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA=$(cut -d' ' -f1 sha256.txt)
+          SIZE=$(du -sk dist/Nib.app | cut -f1)
+          cat > notes.md <<EOF
+          ## Install
+
+          \`\`\`sh
+          brew install nib-app/tap/nib
+          \`\`\`
+
+          Or download \`Nib.zip\` below. Nib is self-signed, so a manual download needs:
+
+          \`\`\`sh
+          xattr -dr com.apple.quarantine /Applications/Nib.app
+          \`\`\`
+
+          The tap does this for you.
+
+          ---
+
+          ${SIZE} KB on disk · macOS 26+ · SHA-256 \`${SHA}\`
+          EOF
+
+          gh release create "${{ steps.version.outputs.tag }}" dist/Nib.zip \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes-file notes.md
+
+      # Bumping the cask is a sed and a commit, on purpose. A release process with a manual step
+      # in the middle is a release process that ships a stale cask.
+      - name: Bump the Homebrew cask
+        if: ${{ secrets.TAP_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          SHA=$(cut -d' ' -f1 sha256.txt)
+          VERSION="${{ steps.version.outputs.version }}"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/nib-app/homebrew-tap.git" tap
+          cd tap
+          sed -i '' "s/  version \".*\"/  version \"${VERSION}\"/" Casks/nib.rb
+          sed -i '' "s/  sha256 \".*\"/  sha256 \"${SHA}\"/"       Casks/nib.rb
+
+          git config user.name  "nib-release"
+          git config user.email "release@nib.app"
+          git commit -am "nib ${VERSION}"
+          git push
+
+      - name: Announce
+        if: ${{ secrets.DISCORD_WEBHOOK != '' }}
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          curl -sS -H "Content-Type: application/json" -X POST "$WEBHOOK" -d @- <<EOF
+          {"content": "Nib ${TAG} is out — https://github.com/${{ github.repository }}/releases/tag/${TAG}"}
+          EOF

@@ -21,11 +21,23 @@ jobs:
       - run: ./Tools/check-boundaries.sh
 
   format:
-    name: Format
+    name: Format and lint
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - run: xcrun swift-format lint --strict --recursive App Packages
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+      - name: swift-format
+        run: xcrun swift-format lint --strict --recursive App Packages
+      # swiftlint links against sourcekitd, so it needs full Xcode. It is skipped locally
+      # under Command Line Tools, which makes CI the only place these rules are guaranteed
+      # to run — hence a hard failure if the binary is missing rather than a skip.
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      - name: SwiftLint
+        run: swiftlint --strict --quiet
 
   test:
     name: Test packages
@@ -55,9 +67,26 @@ jobs:
         run: |
           XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
           if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+      - name: Build the app
+        run: ./Tools/build-app.sh --release
+      - name: Check bundle size
+        run: ./Tools/check-size.sh
+
+  # The Xcode target is what ships, and it is built from a generated project — so a
+  # project.yml that no longer generates, or generates something that does not compile, has
+  # to fail here rather than at release time.
+  xcode:
+    name: Xcode project
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
         run: make gen
-      - name: Check bundle size
-        run: ./Tools/check-budget.sh
+      - name: Build Release
+        run: xcodebuild -project Nib.xcodeproj -scheme Nib -configuration Release build

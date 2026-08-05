@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nib — a tiny, native macOS API client</title>
+<meta name="description" content="Nib is a tiny, fully native macOS API client and a free alternative to Postman, Insomnia, Bruno and Hoppscotch. Around 1.6 MB on disk. No Electron, no account, no telemetry. Import your Postman workspace and keep your requests as plain files in git.">
+<link rel="canonical" href="https://nib.app/">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Nib — a tiny, native macOS API client">
+<meta property="og:description" content="Send a request. Not a signup form. Around 1.6 MB on disk, no Electron, no account, no telemetry.">
+<meta property="og:url" content="https://nib.app/">
+<meta property="og:image" content="https://nib.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9997;</text></svg>">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Nib",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS 26",
+  "url": "https://nib.app/",
+  "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<style>
+/* No web fonts and no framework, for the same reason the app has no dependencies. The system
+   stack is already on the machine and costs nothing to load. */
+:root {
+  --bg: #0c0c0e;
+  --panel: #131317;
+  --line: #23232a;
+  --text: #ececf1;
+  --dim: #9a9aa8;
+  --faint: #6a6a78;
+  --accent: #8b7cf6;
+  --green: #4ade80;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 24px; }
+
+a { color: inherit; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Every H2 is a complete sentence ending in a period. */
+h2 {
+  font-size: clamp(24px, 3.4vw, 34px);
+  line-height: 1.25;
+  letter-spacing: -.02em;
+  margin: 0 0 12px;
+}
+
+section { padding: 88px 0; border-top: 1px solid var(--line); }
+
+.lede { color: var(--dim); max-width: 62ch; margin: 0 0 36px; }
+
+/* Nav */
+nav {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(12, 12, 14, .82);
+  backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+nav .wrap { display: flex; align-items: center; gap: 24px; height: 58px; }
+nav .brand { font-weight: 600; letter-spacing: -.01em; }
+nav a { color: var(--dim); text-decoration: none; font-size: 15px; }
+nav a:hover { color: var(--text); }
+nav .spacer { margin-left: auto; }
+
+/* Hero */
+header { padding: 104px 0 72px; text-align: center; }
+header h1 {
+  font-size: clamp(38px, 6.4vw, 66px);
+  line-height: 1.04;
+  letter-spacing: -.035em;
+  margin: 14px 0 18px;
+}
+header p.sub { color: var(--dim); font-size: 20px; max-width: 46ch; margin: 0 auto 32px; }
+
+.cta {
+  display: inline-block;
+  background: var(--text);
+  color: #0c0c0e;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 13px 26px;
+  border-radius: 10px;
+}
+.cta:hover { background: #fff; }
+.cta.secondary {
+  background: transparent; color: var(--text);
+  border: 1px solid var(--line); margin-left: 10px;
+}
+.cta.secondary:hover { border-color: var(--faint); }
+
+.meta {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--faint);
+  margin-top: 26px;
+}
+
+/* Gallery — demo before features, deliberately. */
+.shot {
+  width: 100%; height: auto; display: block;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+/* Features */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 20px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--dim); font-size: 15px; }
+
+/* Compare */
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+th { color: var(--faint); font-weight: 500; font-size: 13px; }
+td.ours { background: rgba(139, 124, 246, .09); }
+th.ours { background: rgba(139, 124, 246, .14); color: var(--text); font-weight: 600; }
+td:first-child { color: var(--dim); }
+.yes { color: var(--green); }
+.no { color: var(--faint); }
+
+/* Switch */
+ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0 0 28px; }
+ol.steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 46px;
+  margin-bottom: 18px;
+}
+ol.steps li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: 1px;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--line);
+  font-family: var(--mono); font-size: 13px;
+  display: grid; place-items: center; color: var(--dim);
+}
+ol.steps b { display: block; }
+ol.steps span { color: var(--dim); font-size: 15px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chip {
+  font-family: var(--mono); font-size: 12.5px;
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 11px; color: var(--dim);
+}
+
+/* Ethos */
+.numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; }
+.number { text-align: center; }
+.number b {
+  display: block;
+  font-size: clamp(34px, 5vw, 50px);
+  letter-spacing: -.03em;
+  line-height: 1.05;
+}
+.number span { color: var(--faint); font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+
+/* Install */
+pre {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px; overflow-x: auto;
+  font-family: var(--mono); font-size: 14px; color: var(--text);
+}
+code { font-family: var(--mono); font-size: .93em; }
+
+footer { padding: 48px 0 72px; color: var(--faint); font-size: 14px; border-top: 1px solid var(--line); }
+footer a { color: var(--dim); }
+
+.note { color: var(--faint); font-size: 14px; }
+.fn { color: var(--faint); font-size: 13px; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="brand">Nib</span>
+    <a href="#features">Features</a>
+    <a href="#compare">Compare</a>
+    <a href="#switch">Switch</a>
+    <a href="#install">Install</a>
+    <span class="spacer"></span>
+    <a href="https://github.com/nib-app/nib">GitHub</a>
+  </div>
+</nav>
+
+<header class="wrap">
+  <p class="eyebrow">Native macOS API client</p>
+  <h1>Send a request.<br>Not a signup form.</h1>
+  <p class="sub">A tiny, native API client. No Electron. No account. No telemetry. No bullshit.</p>
+  <a class="cta" href="#install">Install</a>
+  <a class="cta secondary" href="https://github.com/nib-app/nib">Source</a>
+  <p class="meta">v0.1.0 &nbsp;|&nbsp; macOS 26+ &nbsp;|&nbsp; AGPL-3.0</p>
+</header>
+
+<section class="wrap" style="border-top: none; padding-top: 0;">
+  <img class="shot" src="screenshot.png" alt="Nib showing a request with an environment picker and a highlighted JSON response">
+</section>
+
+<section id="features" class="wrap">
+  <h2>It does the twenty percent you actually use.</h2>
+  <p class="lede">Everything below is in the first release. Everything not below is deliberate.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Requests are files</h3>
+      <p>One JSON file each, in a folder you choose. Bodies live in sibling files, so a diff is
+      readable. Rename one in Finder and it renames in the app.</p>
+    </div>
+    <div class="card">
+      <h3>Postman import</h3>
+      <p>Collections v2.1 and v2.0, environments, and the whole data-dump zip. Drag it onto the
+      window.</p>
+    </div>
+    <div class="card">
+      <h3>Environments</h3>
+      <p>Swap <code>{{baseUrl}}</code> between local and staging. Secrets go to the Keychain and
+      never to your files.</p>
+    </div>
+    <div class="card">
+      <h3>cURL both ways</h3>
+      <p>Paste a command from Chrome, Firefox or Windows cmd. Copy one back out, with credentials
+      redacted if you like.</p>
+    </div>
+    <div class="card">
+      <h3>Real response detail</h3>
+      <p>JSON highlighting, headers, cookies, the redirect chain, and a timing waterfall from real
+      URLSession metrics.</p>
+    </div>
+    <div class="card">
+      <h3>Keyboard first</h3>
+      <p>Every action has a shortcut and every shortcut is a menu item. <code>⌘K</code> jumps to any
+      request in the collection.</p>
+    </div>
+  </div>
+</section>
+
+<section id="compare" class="wrap">
+  <h2>The difference is mostly what is missing.</h2>
+  <p class="lede">Properties, not benchmarks. We publish numbers we measured ourselves and no
+  others — quoting a competitor's memory use from memory is how comparison tables become
+  advertising.</p>
+  <table>
+    <thead>
+      <tr><th></th><th class="ours">Nib</th><th>Postman</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Account required</td><td class="ours yes">No</td><td class="no">Yes, to use most of it<sup>†</sup></td></tr>
+      <tr><td>Telemetry</td><td class="ours yes">None</td><td class="no">Yes<sup>†</sup></td></tr>
+      <tr><td>Works offline</td><td class="ours yes">Entirely</td><td class="no">Partly</td></tr>
+      <tr><td>Built with</td><td class="ours">AppKit and SwiftUI</td><td>Electron</td></tr>
+      <tr><td>Requests stored as</td><td class="ours">Plain files you own</td><td>A synced workspace</td></tr>
+      <tr><td>On disk</td><td class="ours">~1.6 MB</td><td>Considerably more</td></tr>
+      <tr><td>Idle memory</td><td class="ours">~30 MB</td><td>Considerably more</td></tr>
+      <tr><td>Dependencies</td><td class="ours">0</td><td>Many</td></tr>
+      <tr><td>Runs scripts</td><td class="ours no">No — imported, preserved, reported</td><td class="yes">Yes</td></tr>
+      <tr><td>Licence</td><td class="ours">AGPL-3.0</td><td>Proprietary</td></tr>
+    </tbody>
+  </table>
+  <p class="fn">† From Postman's own documentation and their 2023 announcement of the sign-in
+  requirement. The two "considerably more" rows are honest about what we have not measured; go and
+  measure them yourself if it matters to you.</p>
+</section>
+
+<section id="switch" class="wrap">
+  <h2>Switching takes about a minute.</h2>
+  <ol class="steps">
+    <li><b>Export from Postman.</b><span>Settings → Data → Export, or right-click a collection and
+    export it.</span></li>
+    <li><b>Drop it on Nib.</b><span>The whole window is a drop target. A zip, a collection, or an
+    environment file — all fine.</span></li>
+    <li><b>Read the report.</b><span>Nib lists anything it cannot execute, by request name, and
+    keeps it in your files untouched.</span></li>
+  </ol>
+  <div class="chips">
+    <span class="chip">Collections</span>
+    <span class="chip">Folders</span>
+    <span class="chip">Environments</span>
+    <span class="chip">Variables</span>
+    <span class="chip">Auth</span>
+    <span class="chip">Bodies</span>
+    <span class="chip">Headers</span>
+    <span class="chip">Scripts, preserved</span>
+  </div>
+  <p class="note" style="margin-top: 28px;">Nib does not run scripts, and it says so rather than
+  pretending. Anything it cannot execute round-trips untouched and is reported by name. An import
+  never silently drops anything.</p>
+  <p style="margin-top: 26px;"><a class="cta" href="#install">Make the switch.</a></p>
+</section>
+
+<section class="wrap">
+  <h2>The numbers are the pitch.</h2>
+  <p class="lede">Measured on the shipped build, gated in CI, and re-checked on every pull request.
+  If they ever stop being true, the build goes red the same day.</p>
+  <div class="numbers">
+    <div class="number"><b>1.6 MB</b><span>On disk</span></div>
+    <div class="number"><b>30 MB</b><span>Idle memory</span></div>
+    <div class="number"><b>0</b><span>Dependencies</span></div>
+    <div class="number"><b>0</b><span>Telemetry</span></div>
+  </div>
+</section>
+
+<section id="install" class="wrap">
+  <h2>Install it in one line.</h2>
+  <pre>brew install nib-app/tap/nib</pre>
+  <p class="note">Nib is self-signed rather than notarized, and the tap clears the quarantine
+  attribute for you. If you download the zip from GitHub instead, run
+  <code>xattr -dr com.apple.quarantine /Applications/Nib.app</code> once. That is the honest cost of
+  not paying Apple $99 a year.</p>
+  <p class="note">Nib needs zero system permissions. No Accessibility, no Input Monitoring, no
+  Screen Recording — there is nothing to grant.</p>
+</section>
+
+<footer class="wrap">
+  <p>AGPL-3.0 · <a href="https://github.com/nib-app/nib">Source</a> ·
+  <a href="https://github.com/nib-app/nib/issues">Issues</a> ·
+  <a href="https://github.com/nib-app/nib/blob/main/SECURITY.md">Security</a></p>
+  <p>Nib is not affiliated with Postman, Insomnia, Bruno or Hoppscotch.</p>
+</footer>
+
+</body>
+</html>

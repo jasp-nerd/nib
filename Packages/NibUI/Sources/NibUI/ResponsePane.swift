@@ -51,7 +51,7 @@ struct ResponseChrome: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 260)
+                .frame(width: 330)
 
                 if let response = session.response {
                     Button("Copy response body", systemImage: "doc.on.doc") {

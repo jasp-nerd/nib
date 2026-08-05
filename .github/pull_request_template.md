@@ -1,39 +1,35 @@
-## What and why
+## What changed
 
-<!--
-One paragraph, in your own words: what this changes and why it needs to change.
+<!-- One line. -->
 
-This is the most important box on the form. If the paragraph is hard to write, the change is
-not ready — that is the signal, not an inconvenience. Do not paste a diff summary here.
--->
+## Linked issue
+
+<!-- Nib is issue-first: link the issue this implements. If there isn't one, please open one before
+     going further — see CONTRIBUTING.md. -->
+
+Closes #
 
 ## Checklist
 
-- [ ] `make check` is green (boundaries + format + tests)
-- [ ] I can explain every line of this diff
-- [ ] No new dependency (or: there is an agreed issue, linked below)
-- [ ] No new polling timer
-- [ ] Added or updated a test for the behaviour this changes
-- [ ] No new TCC permission
+- [ ] `make check` is green (boundaries, format, lint, tests, size gate)
+- [ ] No new dependency
+- [ ] No `Timer` — FSEvents, a vnode source or an `NSWorkspace` notification instead
+- [ ] No `import AppKit` or `SwiftUI` outside `NibUI`
+- [ ] Tests added or updated, and they fail without the change
+- [ ] Nothing added to `applicationDidFinishLaunching`
 
 ## Footprint
 
-<!-- Required for anything touching the app target, a Package.swift, or project.yml. -->
+<!-- Fill this in if the change could plausibly move any of them. `make size`, `make measure`,
+     `make memory`. Delete the row if it is genuinely unaffected. -->
 
-|            | before | after |
-|------------|--------|-------|
-| Bundle     |        |       |
-| Launch     |        |       |
-| Idle RSS   |        |       |
+| | Before | After |
+|---|---|---|
+| Bundle size | | |
+| Cold launch | | |
+| Idle footprint | | |
 
-RAM stays under 60 MB and the bundle under 5 MB. Always. No feature is worth going over —
-if this change needs more, that is a conversation in an issue, not a line in a PR.
+## Explain in one paragraph what this does and why
 
-## Visual change
-
-<!-- If this changes the UI: a side-by-side before/after screenshot or a short recording.
-     A recording beats a paragraph. -->
-
-## Related issue
-
-Closes #
+<!-- This box is the actual review control, not a formality. If the paragraph is hard to write, the
+     change is not ready. Describe the behaviour, not the diff. -->
