@@ -1,0 +1,1 @@
+curl -G 'https://api.example.com/v2/search' -d 'q=swift' -d 'lang=en' -k --max-redirs 3

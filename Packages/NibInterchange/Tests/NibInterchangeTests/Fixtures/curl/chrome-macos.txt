@@ -1,0 +1,11 @@
+curl 'https://api.example.com/v2/users?page=2&limit=50' \
+  -H 'accept: application/json, text/plain, */*' \
+  -H 'accept-language: en-GB,en;q=0.9' \
+  -H 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc' \
+  -H 'content-type: application/json' \
+  -H 'origin: https://app.example.com' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://app.example.com/' \
+  -H 'sec-ch-ua: "Chromium";v="140", "Not=A?Brand";v="24"' \
+  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' \
+  --data-raw '{"name":"Ada Lovelace","email":"ada@example.com","roles":["admin"]}'

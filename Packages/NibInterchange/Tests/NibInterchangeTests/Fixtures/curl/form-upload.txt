@@ -1,0 +1,1 @@
+curl https://api.example.com/v2/avatar -F 'file=@/tmp/pic.png' -F 'caption=hello' -u ada:hunter2

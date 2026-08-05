@@ -1,0 +1,5 @@
+curl.exe "https://api.example.com/v2/search?q=hello%20world" ^
+  -H "accept: application/json" ^
+  -H "authorization: Bearer tok_windows_123" ^
+  -H "x-trace: a^%^b" ^
+  --data-raw "{\"query\":\"say \\\"hi\\\"\"}"

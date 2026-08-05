@@ -1,0 +1,94 @@
+name: Nib
+
+options:
+  bundleIdPrefix: app.nib
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  # XcodeGen's Swift Package support only works with Debug/Release. Adding a third
+  # configuration silently breaks local package resolution.
+  defaultConfig: Debug
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    # A menu-bar-class utility is genuinely a single-threaded UI program. The three things
+    # that legitimately leave main -- networking, parsing, file I/O -- all live in packages
+    # that set `.defaultIsolation(nil)` themselves. Note these settings do NOT propagate
+    # into local packages; each Package.swift sets its own.
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+
+    # The single biggest reason a modern Swift app can be a few megabytes: since Swift 5
+    # ABI stability the stdlib ships in the OS, so there is nothing to embed.
+    ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: NO
+
+    CODE_SIGN_STYLE: Manual
+    # Ad-hoc by default so a fresh clone builds with no certificate in the keychain. Nib requests
+    # zero TCC permissions, so there is no permission grant for a changing signature to invalidate
+    # and ad-hoc is genuinely fine for development.
+    #
+    # Releases override this with the persistent "Nib Self-Signed" identity -- see docs/signing.md.
+    # The identity has to be stable across builds for update-in-place to behave, which is exactly
+    # what ad-hoc cannot offer.
+    CODE_SIGN_IDENTITY: "-"
+    # Hardened runtime is required for notarization. We are self-signed today, so it is off;
+    # turning it on is step one of the notarization switch documented in docs/signing.md.
+    ENABLE_HARDENED_RUNTIME: NO
+    # Not sandboxed: we read a user-chosen folder tree and shell out to /usr/bin/ditto to
+    # expand Postman data-dump zips. Stated plainly in the README rather than left to be
+    # discovered. NibStore is written as if sandboxing were coming (security-scoped
+    # bookmarks) so this can be revisited.
+    ENABLE_APP_SANDBOX: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+  configs:
+    Debug:
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      ONLY_ACTIVE_ARCH: YES
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-Osize"
+      SWIFT_COMPILATION_MODE: wholemodule
+      GCC_OPTIMIZATION_LEVEL: s
+      DEAD_CODE_STRIPPING: YES
+      # Stripping of linked static libraries only happens when DEPLOYMENT_POSTPROCESSING
+      # is on, and it is NOT the default. Without it the other strip settings do nothing.
+      DEPLOYMENT_POSTPROCESSING: YES
+      STRIP_INSTALLED_PRODUCT: YES
+      STRIP_STYLE: all
+      STRIP_SWIFT_SYMBOLS: YES
+      LLVM_LTO: YES_THIN
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
+packages:
+  NibCore:
+    path: Packages/NibCore
+  NibHTTP:
+    path: Packages/NibHTTP
+  NibStore:
+    path: Packages/NibStore
+  NibInterchange:
+    path: Packages/NibInterchange
+  NibUI:
+    path: Packages/NibUI
+
+targets:
+  Nib:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+    # App/Info.plist is the single source of truth and is shared with the SwiftPM build path
+    # (Tools/build-app.sh). Do NOT re-declare the keys here with an `info: properties:` block
+    # -- two copies is how a bundle id or version silently diverges between build paths.
+    settings:
+      base:
+        INFOPLIST_FILE: App/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: app.nib.Nib
+        PRODUCT_NAME: Nib
+    dependencies:
+      # NibUI transitively pulls the other four.
+      - package: NibUI
+        product: NibUI

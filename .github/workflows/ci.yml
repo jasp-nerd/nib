@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Cheap and fast, so it runs first and on its own. Catches the class of mistake that a
+  # human reviewer reliably misses: a UI import creeping into a pure package, a polling
+  # timer, a dynamic library, a new dependency.
+  boundaries:
+    name: Boundaries
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./Tools/check-boundaries.sh
+
+  format:
+    name: Format
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcrun swift-format lint --strict --recursive App Packages
+
+  test:
+    name: Test packages
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          # Glob rather than pin an exact version — runner images move.
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+          xcodebuild -version
+      - name: Build
+        run: make build
+      - name: Test
+        run: make test
+
+  # Runs on every PR, not periodically. The README claims a bundle size; a dependency added
+  # in an unrelated PR should turn the build red the same day rather than be discovered by a
+  # stranger with `du` after launch.
+  budget:
+    name: Size budget
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: make gen
+      - name: Check bundle size
+        run: ./Tools/check-budget.sh

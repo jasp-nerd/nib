@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Single source of truth for the bundle metadata.
+
+  Both build paths consume this exact file: Tools/build-app.sh copies it into the assembled
+  bundle, and project.yml points at it by path rather than re-declaring the keys. Duplicating
+  these values across two build systems is how a bundle id or version silently diverges.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Nib</string>
+	<key>CFBundleDisplayName</key>
+	<string>Nib</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.nib.Nib</string>
+	<key>CFBundleExecutable</key>
+	<string>Nib</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>AGPL-3.0</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<!--
+	  Nib is a regular windowed app, not a menu-bar accessory, so LSUIElement is absent.
+
+	  Note what is NOT here: no NSAppleEventsUsageDescription, no camera, no microphone, no
+	  automation. Nib needs zero TCC permissions - no Accessibility, no Input Monitoring, no
+	  Screen Recording. Do not add one without an issue.
+	-->
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
+	<!--
+	  App Transport Security is disabled, deliberately and necessarily.
+
+	  ATS exists to stop an app from quietly talking to its OWN backend over cleartext. Nib has no
+	  backend: every request is one the user typed. Leaving ATS on would block the single most
+	  common thing anyone does with an API client - hitting http://localhost:3000 against a dev
+	  server - and would also block plain-HTTP staging hosts and self-signed internal services.
+	  curl, Postman, Insomnia and every other HTTP client impose no such restriction, because the
+	  policy makes no sense for this class of tool.
+
+	  This does not weaken anyone's security posture: Nib sends what it is told to send and reports
+	  what came back. TLS verification remains ON by default for every request, is disabled only
+	  per-request by explicit user action, and any response fetched insecurely carries a note saying
+	  so. See docs/http-fidelity.md.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

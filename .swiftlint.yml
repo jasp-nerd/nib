@@ -1,0 +1,79 @@
+# swiftlint is a diagnostic tool, not a formatter -- swift-format owns layout. These rules are
+# the ones that matter for a codebase written with AI assistance: the failure modes that compile
+# cleanly and pass review, then bite in production.
+#
+# Set to `error`, not `warning`. A warning in a 200-warning build is not a control.
+#
+# Requires full Xcode (sourcekitd). Enforced in CI; skipped locally under Command Line Tools.
+
+included:
+  - App
+  - Packages
+
+excluded:
+  - Packages/NibCore/.build
+  - Packages/NibHTTP/.build
+  - Packages/NibStore/.build
+  - Packages/NibInterchange/.build
+  - Packages/NibUI/.build
+  - .build
+  - dist
+
+only_rules:
+  # Crash sources.
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - unowned_variable_capture
+
+  # Size limits. These exist because generated code trends toward one enormous view file, and
+  # the fix (extract a real View type) has to happen while it is still cheap.
+  - file_length
+  - type_body_length
+  - function_body_length
+  - function_parameter_count
+  - cyclomatic_complexity
+
+  # Correctness smells.
+  - empty_count
+  - discouraged_optional_boolean
+  - redundant_nil_coalescing
+  - unused_closure_parameter
+  - unused_enumerated
+  - weak_delegate
+
+  # Concurrency / lifecycle.
+  - discarded_notification_center_observer
+
+force_cast:
+  severity: error
+force_try:
+  severity: error
+force_unwrapping:
+  severity: error
+implicitly_unwrapped_optional:
+  severity: error
+unowned_variable_capture:
+  severity: error
+
+file_length:
+  warning: 400
+  error: 600
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 250
+  error: 400
+
+function_body_length:
+  warning: 60
+  error: 100
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+cyclomatic_complexity:
+  warning: 12
+  error: 20

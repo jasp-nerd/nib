@@ -1,0 +1,4 @@
+curl 'https://api.example.com/v2/notes' \
+  -H $'x-multiline: line1\nline2' \
+  -H $'x-tab: a\tb' \
+  --data-raw $'{"text":"first\\nsecond"}'
