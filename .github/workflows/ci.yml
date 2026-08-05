@@ -9,20 +9,24 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# macos-26, not macos-15. Every package declares platforms: [.macOS(.v26)], and building a
+# macOS 26 deployment target on a macOS 15 image is what broke the test job: everything compiled
+# and then the test binary failed to link, with the whole Testing framework missing rather than
+# any one symbol. Match the runner to the target.
 jobs:
   # Cheap and fast, so it runs first and on its own. Catches the class of mistake that a
   # human reviewer reliably misses: a UI import creeping into a pure package, a polling
   # timer, a dynamic library, a new dependency.
   boundaries:
     name: Boundaries
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - run: ./Tools/check-boundaries.sh
 
   format:
     name: Format and lint
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
@@ -41,7 +45,7 @@ jobs:
 
   test:
     name: Test packages
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
@@ -61,7 +65,7 @@ jobs:
   # stranger with `du` after launch.
   budget:
     name: Size budget
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
@@ -78,7 +82,7 @@ jobs:
   # to fail here rather than at release time.
   xcode:
     name: Xcode project
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 26
