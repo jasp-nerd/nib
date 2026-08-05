@@ -1,6 +1,6 @@
 # The Nib tap
 
-These two files belong in a separate repository, `nib-app/homebrew-tap`, not in this one. They live
+These two files belong in a separate repository, `nib-app/homebrew-nib`, not in this one. They live
 here so they are reviewed alongside the code that produces the artefacts they point at, and so the
 release workflow has something to `sed`.
 

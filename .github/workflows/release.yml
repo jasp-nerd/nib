@@ -44,9 +44,10 @@ jobs:
       # ------------------------------------------------------------------------------------
       # Signing.
       #
-      # Nib ships ad-hoc signed, so this is a single `codesign -s -` inside build-app.sh and
-      # there is nothing to do here. Notarizing later is deliberately a small diff confined to
-      # this file: add the Developer ID import above, then
+      # build-app.sh signs with the "Nib Self-Signed" identity when it is in the runner's
+      # keychain, and ad-hoc when it is not. To get the stable identity on CI, import the .p12
+      # produced by Tools/selfsign.sh from a secret before the build step. Notarizing later is
+      # deliberately a small diff confined to this file: add the Developer ID import above, then
       #
       #   xcrun notarytool submit dist/Nib.zip --apple-id … --team-id … --password … --wait
       #   xcrun stapler staple dist/Nib.app
