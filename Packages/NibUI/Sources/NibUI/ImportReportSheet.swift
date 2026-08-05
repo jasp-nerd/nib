@@ -188,8 +188,15 @@ struct ImportDropTarget: ViewModifier {
                     // corners derive their radius from the container, so the highlight follows the
                     // window whatever the system decides that radius is.
                     ConcentricRectangle()
-                        .strokeBorder(.tint, lineWidth: 3)
-                        .background(.tint.opacity(0.06))
+                        .fill(.tint.opacity(0.06))
+                        // Stroked at double width and clipped back to the shape, rather than
+                        // `strokeBorder`: `ConcentricRectangle` is a `Shape` but not an
+                        // `InsettableShape`, so it cannot inset its own path. A plain `stroke`
+                        // straddles the edge and loses half its width off the window.
+                        .overlay {
+                            ConcentricRectangle().stroke(.tint, lineWidth: 6)
+                        }
+                        .clipShape(ConcentricRectangle())
                         .allowsHitTesting(false)
                         .overlay {
                             Label("Drop to import", systemImage: "square.and.arrow.down")
