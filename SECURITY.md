@@ -9,7 +9,7 @@ Expect an acknowledgement within a week. Nib is maintained by volunteers, so the
 bounty and no formal SLA — but a real report will be taken seriously and credited unless you would
 rather it were not.
 
-[advisory]: https://github.com/nib-app/nib/security/advisories/new
+[advisory]: https://github.com/jasp-nerd/nib/security/advisories/new
 
 ## What Nib does with your data
 

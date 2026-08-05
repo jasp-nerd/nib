@@ -6,10 +6,8 @@
 
 <p align="center">A small, native API client for macOS.</p>
 
-<!-- The contact address is still a placeholder; fill it in or drop that badge. -->
 <p align="center">
   <a href="https://discord.gg/AqNR6p4zrq"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=flat"></a>
-  <a href="mailto:REPLACE-ME?subject=Nib"><img alt="Let's talk" src="https://img.shields.io/badge/Let's%20talk-111111?style=flat"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-AGPL--3.0-3DA639?style=flat"></a>
 </p>
 
@@ -36,8 +34,8 @@ For a sense of scale, Postman 12.22.3 for Apple silicon is 353 MB installed, and
 ## Install
 
 ```sh
-brew trust --tap nib-app/nib
-brew install --cask nib-app/nib/nib
+brew trust --tap jasp-nerd/nib
+brew install --cask jasp-nerd/nib/nib
 ```
 
 The first line is not optional. Homebrew 6 refuses to load a third-party tap until you say you trust it, and without it the second line fails rather than installing anything.

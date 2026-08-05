@@ -73,8 +73,8 @@ jobs:
           ## Install
 
           \`\`\`sh
-          brew trust --tap nib-app/nib
-          brew install --cask nib-app/nib/nib
+          brew trust --tap jasp-nerd/nib
+          brew install --cask jasp-nerd/nib/nib
           \`\`\`
 
           Or download \`Nib.zip\` below. Nib is self-signed, so a manual download needs:
@@ -104,13 +104,13 @@ jobs:
           SHA=$(cut -d' ' -f1 sha256.txt)
           VERSION="${{ steps.version.outputs.version }}"
 
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/nib-app/homebrew-nib.git" tap
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/jasp-nerd/homebrew-nib.git" tap
           cd tap
           sed -i '' "s/  version \".*\"/  version \"${VERSION}\"/" Casks/nib.rb
           sed -i '' "s/  sha256 \".*\"/  sha256 \"${SHA}\"/"       Casks/nib.rb
 
           git config user.name  "nib-release"
-          git config user.email "release@nib.app"
+          git config user.email "jasper.meijerink@outlook.com"
           git commit -am "nib ${VERSION}"
           git push
 

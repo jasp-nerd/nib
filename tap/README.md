@@ -1,16 +1,16 @@
 # The Nib tap
 
-These two files belong in a separate repository, `nib-app/homebrew-nib`, not in this one. They live
+These two files belong in a separate repository, `jasp-nerd/homebrew-nib`, not in this one. They live
 here so they are reviewed alongside the code that produces the artefacts they point at, and so the
 release workflow has something to `sed`.
 
 ```sh
-brew trust --tap nib-app/nib             # Homebrew 6 requires this for any third-party tap
-brew install --cask nib-app/nib/nib      # the cask. This is the one to tell users about.
-brew install --formula nib-app/nib/nib   # builds from source
+brew trust --tap jasp-nerd/nib             # Homebrew 6 requires this for any third-party tap
+brew install --cask jasp-nerd/nib/nib      # the cask. This is the one to tell users about.
+brew install --formula jasp-nerd/nib/nib   # builds from source
 ```
 
-The tap repository must be named **`homebrew-nib`** for `nib-app/nib` to resolve. Homebrew strips
+The tap repository must be named **`homebrew-nib`** for `jasp-nerd/nib` to resolve. Homebrew strips
 the `homebrew-` prefix, which is why Tinycast's `abue-ammar/homebrew-tinycast` is tapped as
 `abue-ammar/tinycast`.
 
@@ -26,7 +26,7 @@ quarantine attribute in the first place. Keep it out of the README install secti
 
 Publishing:
 
-1. Create `nib-app/homebrew-nib` on GitHub.
+1. Create `jasp-nerd/homebrew-nib` on GitHub.
 2. Copy `Casks/` and `Formula/` into it.
 3. Add a `TAP_TOKEN` secret to this repository — a fine-grained PAT with contents:write on the tap.
 

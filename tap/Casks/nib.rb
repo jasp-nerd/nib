@@ -2,10 +2,10 @@ cask "nib" do
   version "0.1.0"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
-  url "https://github.com/nib-app/nib/releases/download/v#{version}/Nib.zip"
+  url "https://github.com/jasp-nerd/nib/releases/download/v#{version}/Nib.zip"
   name "Nib"
   desc "Tiny, fully native macOS API client"
-  homepage "https://github.com/nib-app/nib"
+  homepage "https://github.com/jasp-nerd/nib"
 
   depends_on macos: ">= :tahoe"
 
