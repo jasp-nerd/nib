@@ -16,13 +16,41 @@ import Observation
 public final class CollectionModel {
 
     public private(set) var collection: NibCore.Collection?
-    public private(set) var environments: [NibCore.Environment] = []
+    /// Held with secret values *populated*, unlike the files on disk. `CollectionStore` strips them
+    /// on the way out; see `CollectionModel+Environments.swift` for where they come from.
+    public internal(set) var environments: [NibCore.Environment] = []
     public private(set) var rootURL: URL?
     public private(set) var diagnostics: [String] = []
     public private(set) var loadFailure: String?
 
     /// Selected request. Held by id rather than by value so a reload from disk does not invalidate it.
     public var selectedRequestID: NodeID?
+
+    /// Which environment the picker is on. `nil` means "no environment", which is a real choice and
+    /// not an empty state — it is how you check what a request does with only collection defaults.
+    public var activeEnvironmentID: NodeID?
+
+    /// Why the Keychain could not be read, if it could not be.
+    ///
+    /// Load-bearing beyond the message it shows. While this is set, secrets are never written back,
+    /// because a Keychain that fails to list looks identical to one holding nothing — and
+    /// reconciling against "nothing" would delete every secret the user has.
+    public internal(set) var secretsFailure: String?
+
+    /// Bumped on any environment or variable change, so views that depend on resolved values can
+    /// observe one small property instead of the whole environment array.
+    public internal(set) var environmentsRevision = 0
+
+    /// Whether the editor holds environment edits that have not reached disk yet.
+    ///
+    /// Guards against a race that is easy to reproduce and very annoying to hit: FSEvents fires
+    /// for an unrelated change while the editor is open, `reloadIfChangedExternally` reads the
+    /// files, and everything typed since the sheet opened disappears. While this is set, a reload
+    /// keeps the in-memory environments and takes only the tree from disk.
+    var hasStagedEnvironmentChanges = false
+
+    /// Injectable so tests never touch the service name holding somebody's real tokens.
+    let secretStore: SecretStore
 
     /// Rebuilt when the collection changes, not per keystroke — building 5,000 candidates on every
     /// character typed would undo the point of precomputing them.
@@ -34,7 +62,9 @@ public final class CollectionModel {
     /// is our own write coming back, and reloading then would discard what the user typed next.
     private var lastSavedGeneration = 0
 
-    public init() {}
+    public init(secretStore: SecretStore = SecretStore()) {
+        self.secretStore = secretStore
+    }
 
     public var isOpen: Bool { collection != nil }
 
@@ -62,10 +92,17 @@ public final class CollectionModel {
         self.store = store
         rootURL = url
         loadFailure = nil
+        // Opening a different collection must not inherit the previous one's picker position, or
+        // its unsaved edits.
+        activeEnvironmentID = nil
+        secretsFailure = nil
+        hasStagedEnvironmentChanges = false
 
         do {
             let result = try await store.load()
             apply(result)
+            await hydrateSecrets()
+            restoreActiveEnvironment()
         } catch let error as CollectionStore.StoreError {
             switch error {
             case .missingCollectionFile:
@@ -101,7 +138,11 @@ public final class CollectionModel {
 
     private func apply(_ result: CollectionStore.LoadResult) {
         collection = result.collection
-        environments = result.environments
+        // Unsaved edits win over the file. The user is looking at them.
+        if !hasStagedEnvironmentChanges {
+            environments = Self.carryingSecrets(
+                from: environments, into: result.environments)
+        }
         diagnostics = result.diagnostics
         fuzzyCandidates = result.collection.fuzzyCandidates()
 
@@ -113,12 +154,50 @@ public final class CollectionModel {
         selectedRequestID = result.collection.allRequests.first?.request.id
     }
 
+    /// Keep secret values we already hold when re-reading the files.
+    ///
+    /// A reload publishes what is on disk, and on disk every secret is `null`. `hydrateSecrets`
+    /// puts the values back, but it is `async` — so without this there is a window, one suspension
+    /// point wide, where every token in the app reads as empty. Anything that samples the model in
+    /// that window (a view redrawing, a save triggered by an unrelated edit) sees blanks and can
+    /// write them back.
+    ///
+    /// Matched on environment name plus key rather than on `NodeID`, because that pair is what the
+    /// Keychain account is built from and therefore what identity means for a secret.
+    private static func carryingSecrets(
+        from existing: [NibCore.Environment],
+        into incoming: [NibCore.Environment]
+    ) -> [NibCore.Environment] {
+        var held: [String: String] = [:]
+        for environment in existing {
+            for variable in environment.variables where variable.secret {
+                if let value = variable.value {
+                    held["\(environment.name)/\(variable.key)"] = value
+                }
+            }
+        }
+        guard !held.isEmpty else { return incoming }
+
+        return incoming.map { environment in
+            var environment = environment
+            for index in environment.variables.indices
+            where environment.variables[index].secret && environment.variables[index].value == nil {
+                environment.variables[index].value =
+                    held["\(environment.name)/\(environment.variables[index].key)"]
+            }
+            return environment
+        }
+    }
+
     public func close() {
         watcher?.stop()
         watcher = nil
         store = nil
         collection = nil
         environments = []
+        activeEnvironmentID = nil
+        secretsFailure = nil
+        hasStagedEnvironmentChanges = false
         rootURL = nil
         selectedRequestID = nil
         fuzzyCandidates = []
@@ -150,7 +229,20 @@ public final class CollectionModel {
         }
 
         do {
-            apply(try await store.load())
+            let result = try await store.load()
+
+            // Re-check before publishing. Reading the folder takes long enough for a save to
+            // finish underneath us, and this snapshot was taken *before* that write — applying it
+            // would roll the model back to the state the files were in a moment ago and then
+            // persist that on the next save. The symptom is an edit that vanishes seconds after
+            // being made, which is close to impossible to reproduce deliberately.
+            guard await store.currentWriteGeneration == generation else { return }
+
+            apply(result)
+            // The file on disk has `null` where a secret is, so re-reading it would blank values
+            // the user has already entered. Put them back.
+            await hydrateSecrets()
+            restoreActiveEnvironment()
         } catch {
             // A transient failure here is normal: an editor writing a file in two steps can be
             // observed mid-write. Keep what we have rather than blanking the sidebar.
@@ -168,6 +260,7 @@ public final class CollectionModel {
         } catch {
             diagnostics = ["Could not save: \(error.localizedDescription)"]
         }
+        await synchroniseSecrets()
     }
 
     /// Write an edited request back into the tree and save.
@@ -237,6 +330,11 @@ public final class CollectionModel {
         if selectedRequestID == nil {
             selectedRequestID = collection.allRequests.first?.request.id
         }
+        environments.sort { $0.name < $1.name }
+        environmentsRevision += 1
+        // An import is usually the first environment a collection has, so point the picker at it
+        // rather than making the user find it.
+        restoreActiveEnvironment()
         await save()
     }
 
@@ -331,9 +429,8 @@ public final class CollectionModel {
         return collection?.request(withID: selectedRequestID)
     }
 
-    /// The variable scope for a request: collection defaults, then folder, then the request itself.
-    ///
-    /// Environment layering lands in Phase 5; this wires up the layers that exist on disk today.
+    /// The variable scope for a request: collection defaults, then folder, then the active
+    /// environment. Precedence itself lives in `VariableScope` and is tested there.
     public func scope(forRequestWithID id: NodeID) -> VariableScope {
         var scope = VariableScope()
         guard let collection,
@@ -349,6 +446,10 @@ public final class CollectionModel {
         }
         scope.set(folderValues, for: .folder)
 
+        if let environment = activeEnvironment {
+            scope.set(Self.dictionary(environment.variables), for: .environment)
+        }
+
         return scope
     }
 
@@ -359,7 +460,12 @@ public final class CollectionModel {
         return collection.inheritedAuth(forRequestAt: entry.path)
     }
 
-    private static func dictionary(_ variables: [EnvironmentVariable]) -> [String: String] {
+    /// Disabled variables and secrets with no stored value both drop out here.
+    ///
+    /// The second case is the one that matters: on a freshly cloned repo the Keychain holds
+    /// nothing, so `{{TOKEN}}` reports as unresolved and stays visible in the URL. Substituting an
+    /// empty string instead would send a request with a blank credential and a confusing 401.
+    static func dictionary(_ variables: [EnvironmentVariable]) -> [String: String] {
         variables.reduce(into: [:]) { result, variable in
             guard variable.enabled, let value = variable.value else { return }
             result[variable.key] = value

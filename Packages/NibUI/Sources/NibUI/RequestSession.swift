@@ -67,6 +67,43 @@ public final class RequestSession: Identifiable {
         !spec.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !state.isSending
     }
 
+    /// The URL with `{{variables}}` substituted, as it would actually be sent.
+    ///
+    /// Unresolved names stay visible as `{{name}}` rather than disappearing — see the failure-mode
+    /// tests in `VariableResolverTests` for why that is the rule everywhere.
+    public var resolvedURL: String {
+        VariableResolver.resolve(spec.url, in: scope).text
+    }
+
+    /// Names that would not resolve if this were sent right now.
+    ///
+    /// `unresolved` only exists after a send. This is the same information *before* one, which is
+    /// what makes switching to the wrong environment visible immediately rather than as a 404
+    /// against a URL containing a literal `{{baseUrl}}`.
+    ///
+    /// Scoped to the URL and headers on purpose. A body can be a megabyte, and re-scanning it on
+    /// every keystroke to warn about something the send will report anyway is not a trade worth
+    /// making. The URL decides which server gets the request and the headers carry the
+    /// credentials — between them they are where an unresolved variable actually hurts.
+    public var pendingUnresolved: [String] {
+        var names: [String] = []
+        var seen = Set<String>()
+
+        var texts = [spec.url]
+        for header in spec.headers where header.enabled {
+            texts.append(header.name)
+            texts.append(header.value)
+        }
+
+        for text in texts {
+            for placeholder in VariableResolver.placeholders(in: text, scope: scope)
+            where !placeholder.isResolvable && seen.insert(placeholder.name).inserted {
+                names.append(placeholder.name)
+            }
+        }
+        return names
+    }
+
     // MARK: - Sending
 
     public func send() {

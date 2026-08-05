@@ -19,6 +19,9 @@ public final class AppModel {
     /// Whether the Cmd-K switcher is showing.
     public var isPalettePresented = false
 
+    /// Whether the environment editor is showing.
+    public var isEnvironmentEditorPresented = false
+
     public init() {
         let engine = HTTPEngine()
         self.engine = engine
@@ -51,8 +54,19 @@ public final class AppModel {
 
         loadedRequestID = request.id
         session.replace(with: request.spec)
-        session.scope = collectionModel.scope(forRequestWithID: request.id)
-        session.inheritedAuth = collectionModel.inheritedAuth(forRequestWithID: request.id)
+        refreshScope()
+    }
+
+    /// Re-resolve the current request against the collection as it stands now.
+    ///
+    /// Separate from `loadSelectedRequest` because the two have opposite conditions: loading is
+    /// skipped when the request has not changed, and this is called precisely when it has *not* —
+    /// the environment was switched, or a variable's value was edited. Folding it into the load
+    /// path would mean flipping Local to Staging did nothing until you clicked away and back.
+    public func refreshScope() {
+        guard let id = collectionModel.selectedRequestID else { return }
+        session.scope = collectionModel.scope(forRequestWithID: id)
+        session.inheritedAuth = collectionModel.inheritedAuth(forRequestWithID: id)
     }
 
     /// Write the edited request back to disk.

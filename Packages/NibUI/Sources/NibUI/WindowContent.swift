@@ -56,14 +56,40 @@ public struct RequestContent: View {
     }
 
     public var body: some View {
-        RequestPane(session: model.session)
-            .sheet(isPresented: Bindable(model).isPalettePresented) {
-                CommandPalette(
+        VStack(spacing: 0) {
+            if model.collectionModel.isOpen {
+                EnvironmentBar(
                     model: model.collectionModel,
-                    isPresented: Bindable(model).isPalettePresented
+                    isEditorPresented: Bindable(model).isEnvironmentEditorPresented
                 )
-                .withKeyboardHandling()
+                Divider()
             }
+
+            RequestPane(session: model.session)
+                // Attached here rather than to the VStack: two `.sheet` modifiers on one view
+                // fight over the same presentation slot, and the second one silently never shows.
+                .sheet(isPresented: Bindable(model).isPalettePresented) {
+                    CommandPalette(
+                        model: model.collectionModel,
+                        isPresented: Bindable(model).isPalettePresented
+                    )
+                    .withKeyboardHandling()
+                }
+        }
+        // One property to watch instead of the whole environment array: switching environment and
+        // typing a value both bump it, and both have to re-resolve the URL bar.
+        .onChange(of: model.collectionModel.environmentsRevision) {
+            model.refreshScope()
+        }
+        .sheet(
+            isPresented: Bindable(model).isEnvironmentEditorPresented,
+            // On dismiss rather than on the Done button, so Escape saves too.
+            onDismiss: { Task { await model.collectionModel.commitEnvironments() } }
+        ) {
+            EnvironmentEditor(model: model.collectionModel) {
+                model.isEnvironmentEditorPresented = false
+            }
+        }
     }
 }
 

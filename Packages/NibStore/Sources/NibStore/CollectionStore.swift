@@ -155,11 +155,18 @@ public actor CollectionStore {
     }
 
     private func writeEnvironments(_ environments: [NibCore.Environment]) throws {
-        guard !environments.isEmpty else { return }
-
         let directory = root.appendingPathComponent(
             StoreLocations.environmentsDirectoryName, isDirectory: true)
+
+        // Nothing to write and nothing written before: don't create an empty directory in
+        // someone's repo just because they opened the app.
+        guard !environments.isEmpty || isDirectory(directory) else { return }
+
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        // Renaming an environment writes a new file; without pruning, the old one stays and the
+        // watcher loads both back a moment later, so the rename appears to duplicate instead.
+        var expected: Set<String> = []
 
         for environment in environments {
             // Secrets are stripped here, unconditionally. This is the single most important line in
@@ -176,9 +183,24 @@ public actor CollectionStore {
 
             let filename =
                 "\(Self.sanitise(environment.name)).\(StoreLocations.environmentFileExtension)"
+            expected.insert(filename)
             try write(
                 DiskFormat.EnvironmentFile(redacted),
                 to: directory.appendingPathComponent(filename))
+        }
+
+        // Scoped to our own extension, like `removeStaleEntries`. A README or a colleague's
+        // notes file living in `environments/` is not ours to delete.
+        let entries =
+            (try? FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]))
+            ?? []
+        for entry in entries {
+            let name = entry.lastPathComponent
+            guard name.hasSuffix("." + StoreLocations.environmentFileExtension),
+                !expected.contains(name)
+            else { continue }
+            try? FileManager.default.removeItem(at: entry)
         }
     }
 

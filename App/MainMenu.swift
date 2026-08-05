@@ -57,6 +57,9 @@ enum MainMenu {
         add(
             menu, "Go to Request…", #selector(AppDelegate.showPalette(_:)), key: "k",
             target: target)
+        add(
+            menu, "Environments…", #selector(AppDelegate.showEnvironments(_:)), key: "e",
+            target: target)
         menu.addItem(.separator())
         add(
             menu, "Import from Postman…", #selector(AppDelegate.importFromPostman(_:)), key: "i",

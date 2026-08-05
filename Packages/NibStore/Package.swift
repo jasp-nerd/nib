@@ -13,7 +13,8 @@ let package = Package(
         .library(name: "NibStore", targets: ["NibStore"])
     ],
     dependencies: [
-        .package(path: "../NibCore")
+        .package(path: "../NibCore"),
+        .package(path: "../NibTestSupport"),
     ],
     targets: [
         .target(
@@ -26,7 +27,10 @@ let package = Package(
         ),
         .testTarget(
             name: "NibStoreTests",
-            dependencies: ["NibStore"],
+            dependencies: [
+                "NibStore",
+                .product(name: "NibTestSupport", package: "NibTestSupport"),
+            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .defaultIsolation(nil),

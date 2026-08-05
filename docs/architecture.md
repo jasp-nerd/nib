@@ -92,7 +92,8 @@ Load-bearing. Each is a design decision with a consequence attached, not a prefe
 
 8. **Secrets never touch disk.** `null` in the file, value in the Keychain keyed by
    `<collectionUUID>/<envName>/<key>`. A repo cloned onto another machine finds nothing and
-   prompts, which is the correct behaviour.
+   prompts, which is the correct behaviour. The stripping happens in exactly one place —
+   `CollectionStore.writeEnvironments` — and the Keychain side is `docs/environments.md`.
 
 9. **An import never silently drops anything.** Scripts, OAuth config, proxy settings — we
    preserve them verbatim in the request's `preserved` block, round-trip them untouched, and

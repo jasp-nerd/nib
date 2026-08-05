@@ -25,6 +25,7 @@ public struct RequestPane: View {
     public var body: some View {
         VStack(spacing: 0) {
             urlBar
+            resolvedURL
             Divider()
             diagnostics
             Picker("", selection: $tab) {
@@ -76,6 +77,27 @@ public struct RequestPane: View {
         .padding(12)
     }
 
+    /// What the URL becomes once variables are substituted.
+    ///
+    /// Only shown when it differs from what is typed, so a plain URL gets no second line. This is
+    /// the whole environment feature made visible in one row: switch the picker and this changes
+    /// under a URL bar that did not.
+    @ViewBuilder
+    private var resolvedURL: some View {
+        let resolved = session.resolvedURL
+        if resolved != session.spec.url, !resolved.isEmpty {
+            Text(resolved)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+        }
+    }
+
     // MARK: - Diagnostics
     //
     // Unresolved variables and fidelity notes appear here rather than in an alert. A request with a
@@ -84,8 +106,19 @@ public struct RequestPane: View {
 
     @ViewBuilder
     private var diagnostics: some View {
-        if !session.unresolved.isEmpty || !session.notes.isEmpty {
+        // The pre-send warning is suppressed once a send has produced its own list, so the same
+        // variable is never reported twice in two slightly different wordings.
+        let pending = session.unresolved.isEmpty ? session.pendingUnresolved : []
+
+        if !session.unresolved.isEmpty || !session.notes.isEmpty || !pending.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
+                if !pending.isEmpty {
+                    Label(
+                        Self.describePending(pending),
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .foregroundStyle(.orange)
+                }
                 ForEach(session.unresolved, id: \.self) { item in
                     Label(
                         "{{\(item.name)}} — \(Self.describe(item.reason))",
@@ -104,6 +137,15 @@ public struct RequestPane: View {
             .padding(.vertical, 8)
             .background(.quaternary.opacity(0.4))
         }
+    }
+
+    /// One line for all of them. A request against a fresh clone can have six unset secrets, and
+    /// six stacked warning rows would push the tabs off the pane.
+    private static func describePending(_ names: [String]) -> String {
+        let list = names.map { "{{\($0)}}" }.joined(separator: ", ")
+        return names.count == 1
+            ? "\(list) is not defined in the selected environment."
+            : "\(list) are not defined in the selected environment."
     }
 
     private static func describe(_ reason: VariableResolver.Unresolved.Reason) -> String {
