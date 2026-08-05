@@ -1,13 +1,15 @@
-# Nib
+<p align="center">
+  <img src="assets/nib-icon.svg" width="88" height="88" alt="">
+</p>
 
-A tiny, fully native macOS API client — the essentials, without the bloat.
+<h1 align="center">Nib</h1>
+
+<p align="center">A small, native API client for macOS.</p>
 
 <!--
-Three badges, no more. Fill in the two placeholders before publishing:
-  - the Discord invite code
-  - the contact address on the "Let's talk" badge
-Both are deliberately left blank rather than guessed, because a dead invite link and a stranger's
-inbox are worse than no badge at all. No CI badge, no star count, no download count.
+Three badges, no more. Two of them still need filling in before this goes public:
+the Discord invite code, and the contact address. They're left blank rather than
+guessed, since a dead invite link is worse than no badge.
 -->
 <p align="center">
   <a href="https://discord.gg/REPLACE-ME"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=flat"></a>
@@ -16,21 +18,22 @@ inbox are worse than no badge at all. No CI badge, no star count, no download co
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.png" width="720" alt="Nib showing a request and its JSON response">
+  <img src="docs/screenshot.png" width="720" alt="Nib showing a collection, an environment picker, and a highlighted JSON response">
 </p>
 
-Around **1.6 MB on disk** and **30 MB of memory** at rest — no Electron, no account, no telemetry.
-Just AppKit and SwiftUI with zero dependencies. It's fast because there's nothing to it.
+Nib is about 1.6 MB on disk and sits at roughly 30 MB of memory with a collection open. It's written in Swift against AppKit and SwiftUI, it has no third-party dependencies, and there's no account to create and nothing phoning home.
+
+For a sense of scale, Postman 12.22.3 for Apple silicon is 353 MB installed, and 213 MB of that is the copy of Chromium it carries around. Both figures were measured rather than looked up; there's a note at the bottom about how.
 
 ## Features
 
-- **Send requests** — every method, query and path parameters, headers, and six kinds of body.
-- **Import from Postman** — a collection, an environment, or a whole data-dump zip, dragged in.
-- **Requests as files** — one JSON file each, in a folder you choose, diffable in git.
-- **Environments** — swap `{{baseUrl}}` between local and staging; secrets stay in the Keychain.
-- **cURL both ways** — paste a command from devtools, copy one back out, redacted if you like.
-- **Real response detail** — JSON highlighting, headers, cookies, redirect chain, timing waterfall.
-- **Keyboard first** — every action has a shortcut, and every shortcut is a menu item.
+- **Send requests.** Any method, query and path parameters, headers, and six kinds of body including multipart uploads.
+- **Import from Postman.** A collection, an environment file, or an entire data-dump zip.
+- **Requests as files.** One JSON file per request, in a folder you choose, so you can diff and commit them.
+- **Environments.** Point `{{baseUrl}}` at localhost or staging without editing the request. Secrets go to the Keychain.
+- **cURL in both directions.** Paste a command from your browser's devtools, or copy one back out.
+- **Response detail.** Highlighted JSON, headers, cookies, the redirect chain, and timings from real URLSession metrics.
+- **Keyboard shortcuts for everything**, and all of them appear in the menus so they're findable.
 
 ## Install
 
@@ -38,25 +41,21 @@ Just AppKit and SwiftUI with zero dependencies. It's fast because there's nothin
 brew install nib-app/tap/nib
 ```
 
-Nib is **self-signed**, not notarized. The tap's `postflight` clears the quarantine attribute for
-you, so this just works. If you download the zip from the releases page instead, macOS will refuse
-to open it until you run:
+Nib is self-signed rather than notarized, so macOS quarantines it. The tap clears that flag during install and you shouldn't notice. If you'd rather grab the zip from the releases page, run this once afterwards:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Nib.app
 ```
 
-That is the honest cost of not paying Apple $99 a year. Nib needs **zero** system permissions — no
-Accessibility, no Input Monitoring, no Screen Recording — so there is nothing else to grant.
+Nib doesn't ask for any system permissions. There's no Accessibility prompt, no Input Monitoring, no Screen Recording, because it doesn't need any of them.
 
 ## Using it
 
-Type a URL, press `⌘↩`. That is the whole thing.
+Type a URL and press `⌘↩`.
 
-Beyond that: `⌘O` opens a folder as a collection, `⌘K` jumps to any request in it, `⌘E` edits
-environments, and `⌘T` opens a tab. The full map is in [docs/keyboard.md](docs/keyboard.md).
+After that, `⌘O` opens a folder as a collection, `⌘K` jumps to any request in it, `⌘E` edits environments and `⌘T` opens a new tab. [docs/keyboard.md](docs/keyboard.md) has the full list.
 
-Your collection is a folder of plain files:
+A collection is just a folder:
 
 ```
 ~/Work/acme-api/
@@ -68,53 +67,41 @@ Your collection is a folder of plain files:
     └── Create user.req.body.json
 ```
 
-Rename a file in Finder and it renames in Nib. Edit a body in vim and the app picks it up. Commit
-the folder and your team has your requests. Bodies live in sibling files rather than escaped into
-JSON strings, because a 40-line body inlined as `"raw": "{\n \"a\"…"` is an unreadable diff.
+Rename a file in Finder and it renames in the app. Edit a request body in vim and Nib picks up the change. Request bodies live in their own files rather than being escaped into a JSON string, which is the difference between a diff you can read and a single line of `"raw": "{\n \"a\"…"`.
 
-Response history, cookies and window state go to Application Support instead — putting those in
-your repo would poison the whole idea.
+Response history, cookies and window state don't go in that folder. They live in Application Support, because none of it belongs in your repository.
 
 ## Importing from Postman
 
-Drag a Postman export onto the window. Collections v2.1 and v2.0, environment files, and the
-"Export Data" zip all work.
+Drop a Postman export anywhere on the window. Collection formats v2.1 and v2.0 both work, as do environment files and the zip that "Export Data" produces.
 
-Nib does not run scripts, and it says so instead of pretending. Anything it cannot execute —
-pre-request scripts, tests, OAuth 2.0 config, proxy settings — is preserved verbatim in the
-request's `preserved` block, round-trips untouched through save and load, and is listed in the
-import report by name. An import never silently drops anything.
+Nib doesn't run scripts. Rather than dropping them, it keeps pre-request scripts, tests, OAuth 2.0 configuration and proxy settings in a `preserved` block in your files, round-trips them untouched, and lists the affected requests after an import so you know what didn't come across.
 
-Scripts may come later. An account never will.
+Scripts might happen eventually. An account won't.
 
 ## Building from source
 
-Needs macOS 26 and Xcode 26.
+You'll need macOS 26 and Xcode 26.
 
 ```sh
-make doctor    # what your toolchain can and cannot do
-make check     # boundaries + format + lint + 318 tests + the size gate
-make release   # a signed .app in dist/
+make doctor    # tells you what your toolchain can and can't do
+make check     # boundary checks, formatting, lint, 318 tests, size gate
+make release   # produces a signed .app in dist/
 ```
 
-There is no `.xcodeproj` in the repo — `make gen` writes one from `project.yml` with XcodeGen. A
-checked-in project file produces unreviewable merge conflicts and hides build settings from review,
-which is exactly where a size or signing regression would slip through.
+The repository has no `.xcodeproj` in it. `make gen` generates one from `project.yml` using XcodeGen. Checking a project file in makes merge conflicts unreviewable and hides build settings from code review, which is where a size or signing regression would slip past.
 
 ## Contributing
 
 > [!IMPORTANT]
-> Open an issue before opening a pull request. Nib is deliberately small, and the fastest way to
-> waste your afternoon is to build something that is on the not-in-v1 list.
+> Please open an issue before a pull request. Nib is deliberately small, and there's a list of things that aren't going in.
 
-That list, and everything else, is in [CONTRIBUTING.md](CONTRIBUTING.md). The short version: no new
-dependencies, no polling timers, and the last box on the PR template asks you to explain in one
-paragraph what your change does and why. If that paragraph is hard to write, the change is not
-ready.
+That list lives in [CONTRIBUTING.md](CONTRIBUTING.md) along with the rest. Briefly: no new dependencies, no polling timers, and the last box on the pull request template asks you to explain what your change does and why in a paragraph. If that's hard to write, the change probably isn't ready.
 
-## License
+## Licence
 
-AGPL-3.0. See [LICENSE](LICENSE).
+AGPL-3.0, in [LICENSE](LICENSE). Contributions come in under the [CLA](CLA.md), which exists so the licence can still be changed later if it ever needs to be. What it can't do is take your contribution private.
 
-Contributions are accepted under the [CLA](CLA.md), which keeps relicensing possible. The licence is
-the point: this cannot be taken private and sold back to you later.
+---
+
+About those Postman numbers: they come from `du -sk` on Postman 12.22.3 downloaded from postman.com, with the Chromium version read out of its Electron framework. Nib's own numbers come from `make size`, `make measure` and `make memory` against the Release build, and CI checks them on every pull request. There's no memory comparison because Postman wouldn't launch on the machine we tried it on, and a number nobody measured isn't worth printing.

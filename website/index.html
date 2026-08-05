@@ -14,7 +14,8 @@
 <meta property="og:image" content="https://nib.app/og.png">
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9997;</text></svg>">
+<link rel="icon" type="image/svg+xml" href="nib-icon.svg">
+<link rel="apple-touch-icon" href="nib-icon.svg">
 
 <script type="application/ld+json">
 {
@@ -30,8 +31,8 @@
 </script>
 
 <style>
-/* No web fonts and no framework, for the same reason the app has no dependencies. The system
-   stack is already on the machine and costs nothing to load. */
+/* No web fonts, no framework. The system font stack is already on the machine, so the page
+   loads instantly and looks right offline. Same reasoning as the app having no dependencies. */
 :root {
   --bg: #0c0c0e;
   --panel: #131317;
@@ -42,11 +43,10 @@
   --accent: #8b7cf6;
   --green: #4ade80;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
-
 html { scroll-behavior: smooth; }
 
 body {
@@ -55,300 +55,329 @@ body {
   color: var(--text);
   font-family: var(--sans);
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
 
-.wrap { max-width: 940px; margin: 0 auto; padding: 0 24px; }
+/* Sections are full width so their dividers reach the edges of the window. The content inside
+   is what gets the max-width, not the section. */
+section { border-top: 1px solid var(--line); padding: 96px 0; }
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 28px; }
 
 a { color: inherit; }
 
-.eyebrow {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-/* Every H2 is a complete sentence ending in a period. */
 h2 {
-  font-size: clamp(24px, 3.4vw, 34px);
-  line-height: 1.25;
+  font-size: clamp(25px, 3.2vw, 33px);
+  line-height: 1.3;
   letter-spacing: -.02em;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
 }
 
-section { padding: 88px 0; border-top: 1px solid var(--line); }
+p { margin: 0 0 18px; max-width: 68ch; }
+p:last-child { margin-bottom: 0; }
+.lede { color: var(--dim); margin-bottom: 40px; }
 
-.lede { color: var(--dim); max-width: 62ch; margin: 0 0 36px; }
-
-/* Nav */
 nav {
   position: sticky; top: 0; z-index: 10;
-  background: rgba(12, 12, 14, .82);
+  background: rgba(12, 12, 14, .85);
   backdrop-filter: saturate(140%) blur(12px);
   border-bottom: 1px solid var(--line);
 }
-nav .wrap { display: flex; align-items: center; gap: 24px; height: 58px; }
-nav .brand { font-weight: 600; letter-spacing: -.01em; }
+nav .wrap { display: flex; align-items: center; gap: 26px; height: 60px; }
+nav .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+nav .brand img { width: 22px; height: 22px; border-radius: 6px; }
 nav a { color: var(--dim); text-decoration: none; font-size: 15px; }
 nav a:hover { color: var(--text); }
 nav .spacer { margin-left: auto; }
+nav a.gh { display: inline-flex; align-items: center; gap: 7px; }
 
-/* Hero */
-header { padding: 104px 0 72px; text-align: center; }
-header h1 {
-  font-size: clamp(38px, 6.4vw, 66px);
-  line-height: 1.04;
-  letter-spacing: -.035em;
-  margin: 14px 0 18px;
+header { padding: 96px 0 0; text-align: center; border: 0; }
+header .wrap { display: flex; flex-direction: column; align-items: center; }
+header img.mark { width: 68px; height: 68px; border-radius: 16px; margin-bottom: 26px; }
+.eyebrow {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--faint); margin: 0 0 16px;
 }
-header p.sub { color: var(--dim); font-size: 20px; max-width: 46ch; margin: 0 auto 32px; }
+header h1 {
+  font-size: clamp(38px, 6vw, 62px);
+  line-height: 1.06; letter-spacing: -.035em; margin: 0 0 20px;
+}
+header .sub { color: var(--dim); font-size: 20px; max-width: 44ch; margin: 0 0 34px; }
+.buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
 .cta {
-  display: inline-block;
-  background: var(--text);
-  color: #0c0c0e;
-  font-weight: 600;
-  text-decoration: none;
-  padding: 13px 26px;
-  border-radius: 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--text); color: #0c0c0e; font-weight: 600;
+  text-decoration: none; padding: 13px 26px; border-radius: 10px;
 }
 .cta:hover { background: #fff; }
-.cta.secondary {
-  background: transparent; color: var(--text);
-  border: 1px solid var(--line); margin-left: 10px;
-}
+.cta.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
 .cta.secondary:hover { border-color: var(--faint); }
 
-.meta {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--faint);
-  margin-top: 26px;
+.meta { font-family: var(--mono); font-size: 13px; color: var(--faint); margin: 28px 0 0; }
+
+/* The screenshot belongs to the hero, so it shares the hero's block and does not get its own
+   divider or a second helping of section padding. */
+.gallery { padding: 56px 0 96px; border: 0; }
+.shot { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 24px; display: flex; flex-direction: column;
 }
+.card .icon { width: 20px; height: 20px; color: var(--accent); margin-bottom: 14px; }
+.card h3 { margin: 0 0 8px; font-size: 17px; }
+.card p { margin: 0; color: var(--dim); font-size: 15px; line-height: 1.6; }
 
-/* Gallery — demo before features, deliberately. */
-.shot {
-  width: 100%; height: auto; display: block;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
-/* Features */
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 20px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-.card h3 { margin: 0 0 6px; font-size: 17px; }
-.card p { margin: 0; color: var(--dim); font-size: 15px; }
-
-/* Compare */
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
-th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); }
-th { color: var(--faint); font-weight: 500; font-size: 13px; }
-td.ours { background: rgba(139, 124, 246, .09); }
+th, td { text-align: left; padding: 15px 18px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { color: var(--faint); font-weight: 500; font-size: 13px; }
 th.ours { background: rgba(139, 124, 246, .14); color: var(--text); font-weight: 600; }
-td:first-child { color: var(--dim); }
-.yes { color: var(--green); }
-.no { color: var(--faint); }
+td.ours { background: rgba(139, 124, 246, .09); }
+td:first-child { color: var(--dim); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
 
-/* Switch */
-ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0 0 28px; }
-ol.steps li {
-  counter-increment: step;
-  position: relative;
-  padding-left: 46px;
-  margin-bottom: 18px;
-}
+ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0 0 36px; }
+ol.steps li { counter-increment: step; position: relative; padding-left: 48px; margin-bottom: 24px; }
+ol.steps li:last-child { margin-bottom: 0; }
 ol.steps li::before {
   content: counter(step);
-  position: absolute; left: 0; top: 1px;
+  position: absolute; left: 0; top: 0;
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--panel); border: 1px solid var(--line);
   font-family: var(--mono); font-size: 13px;
   display: grid; place-items: center; color: var(--dim);
 }
-ol.steps b { display: block; }
+ol.steps b { display: block; margin-bottom: 2px; }
 ol.steps span { color: var(--dim); font-size: 15px; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 32px; }
 .chip {
   font-family: var(--mono); font-size: 12.5px;
   border: 1px solid var(--line); border-radius: 999px;
-  padding: 5px 11px; color: var(--dim);
+  padding: 5px 12px; color: var(--dim);
 }
 
-/* Ethos */
-.numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; }
+.numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 32px 20px; }
 .number { text-align: center; }
-.number b {
-  display: block;
-  font-size: clamp(34px, 5vw, 50px);
-  letter-spacing: -.03em;
-  line-height: 1.05;
+.number b { display: block; font-size: clamp(32px, 4.6vw, 46px); letter-spacing: -.03em; line-height: 1.1; }
+.number span {
+  display: block; margin-top: 10px; color: var(--faint);
+  font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
 }
-.number span { color: var(--faint); font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
 
-/* Install */
 pre {
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  padding: 16px 18px; overflow-x: auto;
-  font-family: var(--mono); font-size: 14px; color: var(--text);
+  padding: 18px 20px; margin: 0 0 24px; overflow-x: auto;
+  font-family: var(--mono); font-size: 14px;
 }
 code { font-family: var(--mono); font-size: .93em; }
 
-footer { padding: 48px 0 72px; color: var(--faint); font-size: 14px; border-top: 1px solid var(--line); }
+.note { color: var(--faint); font-size: 15px; }
+.fn { color: var(--faint); font-size: 14px; margin-top: 26px; }
+
+footer { border-top: 1px solid var(--line); padding: 44px 0 72px; color: var(--faint); font-size: 14px; }
 footer a { color: var(--dim); }
 
-.note { color: var(--faint); font-size: 14px; }
-.fn { color: var(--faint); font-size: 13px; margin-top: 18px; }
+.icon { width: 1em; height: 1em; flex: none; vertical-align: -.125em; }
+.cta .icon { width: 16px; height: 16px; }
 </style>
 </head>
 <body>
+<!--
+  The icon set: one inline sprite, referenced with <use>. No icon font, no CDN, no build step —
+  the same reason the app has no dependencies, and it means the page renders identically offline
+  and cannot be broken by somebody else's outage.
+
+  Everything is a 24x24 stroke glyph on currentColor except the GitHub mark, which is the official
+  Invertocat path. Postman's mark is deliberately absent: using a competitor's trademark to label a
+  column you are winning is the kind of thing that turns a comparison into an advert, and their
+  name in text says the same thing without borrowing their brand.
+-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-github" viewBox="0 0 16 16">
+      <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+    </symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/>
+    </symbol>
+    <symbol id="i-import" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v11"/><path d="m8 10 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+    </symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/>
+    </symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/>
+    </symbol>
+    <symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12h4l3-8 4 16 3-8h4"/>
+    </symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m5 13 4 4L19 7"/>
+    </symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 6l12 12M18 6L6 18"/>
+    </symbol>
+    <symbol id="i-nib" viewBox="0 0 24 24">
+      <path fill="currentColor" fill-rule="evenodd" d="M12 1.5 L17.4 5.4 C18.6 6.3 19.1 7.6 18.8 9 L12.8 22.2 A0.9 0.9 0 0 1 11.2 22.2 L5.2 9 C4.9 7.6 5.4 6.3 6.6 5.4 Z M12 6 A1.9 1.9 0 1 0 12 9.8 A1.9 1.9 0 1 0 12 6 Z M11.2 11.4 L12.8 11.4 L12 22.4 Z"/>
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/>
+    </symbol>
+  </defs>
+</svg>
 
 <nav>
   <div class="wrap">
-    <span class="brand">Nib</span>
+    <span class="brand"><img src="nib-icon.svg" alt="">Nib</span>
     <a href="#features">Features</a>
     <a href="#compare">Compare</a>
     <a href="#switch">Switch</a>
     <a href="#install">Install</a>
     <span class="spacer"></span>
-    <a href="https://github.com/nib-app/nib">GitHub</a>
+    <a class="gh" href="https://github.com/nib-app/nib"><svg class="icon"><use href="#i-github"/></svg>GitHub</a>
   </div>
 </nav>
 
-<header class="wrap">
-  <p class="eyebrow">Native macOS API client</p>
-  <h1>Send a request.<br>Not a signup form.</h1>
-  <p class="sub">A tiny, native API client. No Electron. No account. No telemetry. No bullshit.</p>
-  <a class="cta" href="#install">Install</a>
-  <a class="cta secondary" href="https://github.com/nib-app/nib">Source</a>
-  <p class="meta">v0.1.0 &nbsp;|&nbsp; macOS 26+ &nbsp;|&nbsp; AGPL-3.0</p>
+<header>
+  <div class="wrap">
+    <img class="mark" src="nib-icon.svg" alt="Nib">
+    <p class="eyebrow">Native macOS API client</p>
+    <h1>Send a request.<br>Not a signup form.</h1>
+    <p class="sub">A small, native API client for macOS. No Electron, no account, no telemetry.</p>
+    <div class="buttons">
+      <a class="cta" href="#install"><svg class="icon"><use href="#i-download"/></svg>Install</a>
+      <a class="cta secondary" href="https://github.com/nib-app/nib"><svg class="icon"><use href="#i-github"/></svg>Source</a>
+    </div>
+    <p class="meta">v0.1.0 &nbsp;·&nbsp; macOS 26+ &nbsp;·&nbsp; AGPL-3.0</p>
+  </div>
 </header>
 
-<section class="wrap" style="border-top: none; padding-top: 0;">
-  <img class="shot" src="screenshot.png" alt="Nib showing a request with an environment picker and a highlighted JSON response">
+<section class="gallery">
+  <div class="wrap">
+    <img class="shot" src="screenshot.png" alt="Nib showing a collection, an environment picker, and a highlighted JSON response">
+  </div>
 </section>
 
-<section id="features" class="wrap">
-  <h2>It does the twenty percent you actually use.</h2>
-  <p class="lede">Everything below is in the first release. Everything not below is deliberate.</p>
-  <div class="grid">
-    <div class="card">
-      <h3>Requests are files</h3>
-      <p>One JSON file each, in a folder you choose. Bodies live in sibling files, so a diff is
-      readable. Rename one in Finder and it renames in the app.</p>
-    </div>
-    <div class="card">
-      <h3>Postman import</h3>
-      <p>Collections v2.1 and v2.0, environments, and the whole data-dump zip. Drag it onto the
-      window.</p>
-    </div>
-    <div class="card">
-      <h3>Environments</h3>
-      <p>Swap <code>{{baseUrl}}</code> between local and staging. Secrets go to the Keychain and
-      never to your files.</p>
-    </div>
-    <div class="card">
-      <h3>cURL both ways</h3>
-      <p>Paste a command from Chrome, Firefox or Windows cmd. Copy one back out, with credentials
-      redacted if you like.</p>
-    </div>
-    <div class="card">
-      <h3>Real response detail</h3>
-      <p>JSON highlighting, headers, cookies, the redirect chain, and a timing waterfall from real
-      URLSession metrics.</p>
-    </div>
-    <div class="card">
-      <h3>Keyboard first</h3>
-      <p>Every action has a shortcut and every shortcut is a menu item. <code>⌘K</code> jumps to any
-      request in the collection.</p>
+<section id="features">
+  <div class="wrap">
+    <h2>It does the twenty percent you actually use.</h2>
+    <p class="lede">Everything here is in the first release, and everything that is missing is missing on purpose.</p>
+    <div class="grid">
+      <div class="card">
+        <svg class="icon"><use href="#i-file"/></svg>
+        <h3>Requests are files</h3>
+        <p>Every request is one JSON file in a folder you pick. Bodies sit in their own files next to them, so a diff is something you can actually read.</p>
+      </div>
+      <div class="card">
+        <svg class="icon"><use href="#i-import"/></svg>
+        <h3>Postman import</h3>
+        <p>Drag in a collection, an environment file, or the whole data-dump zip. Collection formats v2.1 and v2.0 both work.</p>
+      </div>
+      <div class="card">
+        <svg class="icon"><use href="#i-globe"/></svg>
+        <h3>Environments</h3>
+        <p>Point <code>{{baseUrl}}</code> at localhost or at staging without touching the request. Anything you mark secret goes to the Keychain rather than into your files.</p>
+      </div>
+      <div class="card">
+        <svg class="icon"><use href="#i-terminal"/></svg>
+        <h3>cURL in and out</h3>
+        <p>Paste a command copied from Chrome, Firefox or Windows cmd and it becomes a request. Copy one back out when you need to share it, with the credentials stripped if you prefer.</p>
+      </div>
+      <div class="card">
+        <svg class="icon"><use href="#i-pulse"/></svg>
+        <h3>Responses in detail</h3>
+        <p>Highlighted JSON, headers, cookies, the redirect chain, and a timing breakdown taken from real URLSession metrics rather than a stopwatch.</p>
+      </div>
+      <div class="card">
+        <svg class="icon"><use href="#i-keyboard"/></svg>
+        <h3>Built for the keyboard</h3>
+        <p>Every action has a shortcut, and every shortcut is also a menu item so you can find it. <code>⌘K</code> jumps to any request in the collection.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<section id="compare" class="wrap">
-  <h2>The difference is mostly what is missing.</h2>
-  <p class="lede">Properties, not benchmarks. We publish numbers we measured ourselves and no
-  others — quoting a competitor's memory use from memory is how comparison tables become
-  advertising.</p>
-  <table>
-    <thead>
-      <tr><th></th><th class="ours">Nib</th><th>Postman</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>Account required</td><td class="ours yes">No</td><td class="no">Yes, to use most of it<sup>†</sup></td></tr>
-      <tr><td>Telemetry</td><td class="ours yes">None</td><td class="no">Yes<sup>†</sup></td></tr>
-      <tr><td>Works offline</td><td class="ours yes">Entirely</td><td class="no">Partly</td></tr>
-      <tr><td>Built with</td><td class="ours">AppKit and SwiftUI</td><td>Electron</td></tr>
-      <tr><td>Requests stored as</td><td class="ours">Plain files you own</td><td>A synced workspace</td></tr>
-      <tr><td>On disk</td><td class="ours">~1.6 MB</td><td>Considerably more</td></tr>
-      <tr><td>Idle memory</td><td class="ours">~30 MB</td><td>Considerably more</td></tr>
-      <tr><td>Dependencies</td><td class="ours">0</td><td>Many</td></tr>
-      <tr><td>Runs scripts</td><td class="ours no">No — imported, preserved, reported</td><td class="yes">Yes</td></tr>
-      <tr><td>Licence</td><td class="ours">AGPL-3.0</td><td>Proprietary</td></tr>
-    </tbody>
-  </table>
-  <p class="fn">† From Postman's own documentation and their 2023 announcement of the sign-in
-  requirement. The two "considerably more" rows are honest about what we have not measured; go and
-  measure them yourself if it matters to you.</p>
-</section>
-
-<section id="switch" class="wrap">
-  <h2>Switching takes about a minute.</h2>
-  <ol class="steps">
-    <li><b>Export from Postman.</b><span>Settings → Data → Export, or right-click a collection and
-    export it.</span></li>
-    <li><b>Drop it on Nib.</b><span>The whole window is a drop target. A zip, a collection, or an
-    environment file — all fine.</span></li>
-    <li><b>Read the report.</b><span>Nib lists anything it cannot execute, by request name, and
-    keeps it in your files untouched.</span></li>
-  </ol>
-  <div class="chips">
-    <span class="chip">Collections</span>
-    <span class="chip">Folders</span>
-    <span class="chip">Environments</span>
-    <span class="chip">Variables</span>
-    <span class="chip">Auth</span>
-    <span class="chip">Bodies</span>
-    <span class="chip">Headers</span>
-    <span class="chip">Scripts, preserved</span>
-  </div>
-  <p class="note" style="margin-top: 28px;">Nib does not run scripts, and it says so rather than
-  pretending. Anything it cannot execute round-trips untouched and is reported by name. An import
-  never silently drops anything.</p>
-  <p style="margin-top: 26px;"><a class="cta" href="#install">Make the switch.</a></p>
-</section>
-
-<section class="wrap">
-  <h2>The numbers are the pitch.</h2>
-  <p class="lede">Measured on the shipped build, gated in CI, and re-checked on every pull request.
-  If they ever stop being true, the build goes red the same day.</p>
-  <div class="numbers">
-    <div class="number"><b>1.6 MB</b><span>On disk</span></div>
-    <div class="number"><b>30 MB</b><span>Idle memory</span></div>
-    <div class="number"><b>0</b><span>Dependencies</span></div>
-    <div class="number"><b>0</b><span>Telemetry</span></div>
+<section id="compare">
+  <div class="wrap">
+    <h2>How it compares.</h2>
+    <p class="lede">These numbers were measured on one machine against Postman 12.22.3 for Apple silicon, downloaded from postman.com. Where we could not measure something, the row says so rather than guessing.</p>
+    <table>
+      <thead>
+        <tr><th></th><th class="ours">Nib</th><th>Postman 12.22.3</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>On disk</td><td class="ours"><b>1.6 MB</b></td><td><b>353 MB</b>, of which 213 MB is Electron</td></tr>
+        <tr><td>Download</td><td class="ours">1.6 MB</td><td>145 MB</td></tr>
+        <tr><td>Built with</td><td class="ours">AppKit and SwiftUI</td><td>Electron, embedding Chromium 138</td></tr>
+        <tr><td>Dependencies</td><td class="ours">None</td><td>A bundled browser, at minimum</td></tr>
+        <tr><td>Idle memory</td><td class="ours">30 MB</td><td>Not measured<sup>†</sup></td></tr>
+        <tr><td>Account required</td><td class="ours"><svg class="icon"><use href="#i-check"/></svg> No</td><td>Yes, for most of it</td></tr>
+        <tr><td>Telemetry</td><td class="ours"><svg class="icon"><use href="#i-check"/></svg> None</td><td>Yes</td></tr>
+        <tr><td>Requests stored as</td><td class="ours">Plain files you own</td><td>A synced workspace</td></tr>
+        <tr><td>Licence</td><td class="ours">AGPL-3.0</td><td>Proprietary</td></tr>
+      </tbody>
+    </table>
+    <p class="fn">† Postman quit immediately every time we launched it on the machine we tested on, so we have no memory figure we are prepared to print. The rest of the numbers come from the downloaded bundle itself: <code>du</code> on the installed app, and the Chromium build string inside its Electron framework.</p>
   </div>
 </section>
 
-<section id="install" class="wrap">
-  <h2>Install it in one line.</h2>
-  <pre>brew install nib-app/tap/nib</pre>
-  <p class="note">Nib is self-signed rather than notarized, and the tap clears the quarantine
-  attribute for you. If you download the zip from GitHub instead, run
-  <code>xattr -dr com.apple.quarantine /Applications/Nib.app</code> once. That is the honest cost of
-  not paying Apple $99 a year.</p>
-  <p class="note">Nib needs zero system permissions. No Accessibility, no Input Monitoring, no
-  Screen Recording — there is nothing to grant.</p>
+<section id="switch">
+  <div class="wrap">
+    <h2>Moving over takes about a minute.</h2>
+    <ol class="steps">
+      <li><b>Export from Postman.</b><span>Settings, then Data, then Export. You can also right-click a single collection and export just that.</span></li>
+      <li><b>Drop the file on Nib.</b><span>The whole window is a drop target, and it accepts a zip, a collection, or an environment file.</span></li>
+      <li><b>Read the report.</b><span>Nib lists anything it could not bring across, names the requests affected, and leaves that data in your files.</span></li>
+    </ol>
+    <div class="chips">
+      <span class="chip">Collections</span>
+      <span class="chip">Folders</span>
+      <span class="chip">Environments</span>
+      <span class="chip">Variables</span>
+      <span class="chip">Auth</span>
+      <span class="chip">Bodies</span>
+      <span class="chip">Headers</span>
+      <span class="chip">Scripts, preserved</span>
+    </div>
+    <p class="note">Nib does not run scripts. It keeps them in your files, round-trips them untouched, and tells you which requests contain them, so nothing disappears quietly during an import.</p>
+    <p style="margin-top: 30px;"><a class="cta" href="#install">Make the switch</a></p>
+  </div>
 </section>
 
-<footer class="wrap">
-  <p>AGPL-3.0 · <a href="https://github.com/nib-app/nib">Source</a> ·
-  <a href="https://github.com/nib-app/nib/issues">Issues</a> ·
-  <a href="https://github.com/nib-app/nib/blob/main/SECURITY.md">Security</a></p>
-  <p>Nib is not affiliated with Postman, Insomnia, Bruno or Hoppscotch.</p>
+<section>
+  <div class="wrap">
+    <h2>The numbers are the pitch.</h2>
+    <p class="lede">All four are measured on the build that ships and checked again on every pull request, so if one of them stops being true the build fails that day.</p>
+    <div class="numbers">
+      <div class="number"><b>1.6 MB</b><span>On disk</span></div>
+      <div class="number"><b>30 MB</b><span>Idle memory</span></div>
+      <div class="number"><b>0</b><span>Dependencies</span></div>
+      <div class="number"><b>0</b><span>Telemetry</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install it in one line.</h2>
+    <pre>brew install nib-app/tap/nib</pre>
+    <p class="note">Nib is self-signed rather than notarized, and the tap clears the quarantine flag as part of installing. If you would rather download the zip from GitHub, run <code>xattr -dr com.apple.quarantine /Applications/Nib.app</code> once afterwards and macOS will stop complaining.</p>
+    <p class="note">It asks for no system permissions at all. There is no Accessibility prompt, no Input Monitoring prompt, and no Screen Recording prompt, because none of them are needed.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>AGPL-3.0 · <a href="https://github.com/nib-app/nib">Source</a> · <a href="https://github.com/nib-app/nib/issues">Issues</a> · <a href="https://github.com/nib-app/nib/blob/main/SECURITY.md">Security</a></p>
+    <p>Nib is not affiliated with Postman, Insomnia, Bruno or Hoppscotch.</p>
+  </div>
 </footer>
 
 </body>

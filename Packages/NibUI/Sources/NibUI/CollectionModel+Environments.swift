@@ -166,6 +166,17 @@ extension CollectionModel {
             return
         }
 
+        // Re-check after the await, not only before it.
+        //
+        // Reading the Keychain suspends, and an edit can be staged while it is suspended — so the
+        // guard at the top of this method can pass, the user can type a token, and this can then
+        // overwrite it with what the Keychain held a moment *earlier*, which is nothing. The next
+        // save reconciles against that blank and the secret is gone.
+        //
+        // Same shape as the stale-snapshot check in `reloadIfChangedExternally`, and it presented
+        // the same way: one failure in ten full-suite runs, never in isolation.
+        guard !hasStagedEnvironmentChanges else { return }
+
         for environmentIndex in environments.indices {
             let environment = environments[environmentIndex]
             for variableIndex in environment.variables.indices
