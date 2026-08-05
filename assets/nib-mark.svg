@@ -1,6 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" role="img" aria-label="Nib">
   <!--
-    A fountain pen nib.
+    A fountain pen nib. The canonical mark.
+
+    Nothing loads this file at runtime: the website inlines the same path into its icon sprite so
+    the page makes no extra request, and `nib-icon.svg` carries it on a rounded square for places
+    that want an app icon. This is the source of truth those two are copied from, and the file to
+    hand anyone who asks for the logo.
+
 
     Three things make it read as a nib rather than as a map pin, which is what the first two
     attempts looked like at 22px:
