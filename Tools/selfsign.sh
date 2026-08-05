@@ -51,16 +51,27 @@ security import "$OUT/nib.p12" -f pkcs12 -P "$P12_PASSWORD" \
 rm -f "$OUT/nib.key" "$OUT/nib.crt"
 
 echo
+printf '\x00' > "$OUT/.probe"
 echo "==> done"
-security find-identity -v -p codesigning | grep "$NAME" || {
-    echo "WARNING: the identity did not appear in find-identity."
-    echo "Open Keychain Access, find \"$NAME\", and set its trust for code signing to Always Trust."
-}
+# `find-identity -p codesigning` lists identities the system *trusts* for that policy, and a
+# self-signed certificate is not trusted by default. It will not appear there, and that is fine:
+# codesign signs with it regardless. Only verification against a trust policy needs trust, and
+# Gatekeeper was never going to accept a self-signed app anyway. So check the certificate is
+# present and prove it can actually sign, rather than asking a question with a misleading answer.
+if security find-certificate -c "$NAME" >/dev/null 2>&1; then
+    echo "certificate \"$NAME\" is in the keychain"
+    if codesign --force --sign "$NAME" --timestamp=none "$OUT/.probe" 2>/dev/null; then
+        echo "and codesign can use it"
+    fi
+else
+    echo "WARNING: \"$NAME\" is not in the keychain. Something went wrong above."
+fi
 
 echo
 echo "For CI, store these two GitHub secrets:"
 echo "  SIGNING_P12_PASSWORD  = the passphrase you just entered"
 echo "  SIGNING_P12_BASE64    = the base64 below"
+rm -f "$OUT/.probe"
 echo
 base64 < "$OUT/nib.p12"
 echo

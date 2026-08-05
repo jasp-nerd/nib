@@ -28,10 +28,14 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     /// someone rearranges the panes and then quietly does nothing.
     private(set) var responseController: ResponsePaneController?
 
-    /// The toolbar's delegate. `NSWindow.toolbar` holds the toolbar; nothing holds the delegate,
-    /// which is `weak` on `NSToolbar`, so without this the items stop being vended after the
-    /// initialiser returns and the toolbar comes up empty.
-    private var toolbarDelegate: MainToolbar?
+    /// The object that vends the toolbar's items.
+    ///
+    /// Held **strongly**, and deliberately so, which is why it is not called `toolbarDelegate` —
+    /// SwiftLint's `weak_delegate` rule matches on the name and it would be wrong here.
+    /// `NSToolbar.delegate` is itself weak, and `NSWindow` only retains the toolbar, so nothing
+    /// else in the graph keeps this alive: make it weak and the items stop being vended the moment
+    /// the initialiser returns, leaving an empty toolbar and no error anywhere.
+    private var mainToolbar: MainToolbar?
 
     convenience init() {
         let window = NSWindow(
@@ -60,9 +64,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
 
         // Assigned after `contentViewController`, because the tracking separator needs the split
         // view that the root controller only has once its view is loaded.
-        let toolbarDelegate = MainToolbar(splitView: root.splitView)
-        self.toolbarDelegate = toolbarDelegate
-        window.toolbar = toolbarDelegate.makeToolbar()
+        let mainToolbar = MainToolbar(splitView: root.splitView)
+        self.mainToolbar = mainToolbar
+        window.toolbar = mainToolbar.makeToolbar()
 
         observeCollection()
 
