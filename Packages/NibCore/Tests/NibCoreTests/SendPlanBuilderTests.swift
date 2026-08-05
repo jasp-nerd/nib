@@ -269,25 +269,50 @@ struct SendPlanBuilderTests {
 
     @Test("a binary body becomes a file URL so the engine can stream it")
     func binaryBodyStreams() throws {
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("nib-binary-\(UUID().uuidString).bin")
+        try Data([0x01, 0x02]).write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+
         let out = try Self.build(
             HTTPRequestSpec(
-                method: .post, url: "{{baseUrl}}/upload", body: .binary(path: "/tmp/blob.bin")))
-        #expect(out.plan.body == .file(URL(fileURLWithPath: "/tmp/blob.bin")))
+                method: .post, url: "{{baseUrl}}/upload", body: .binary(path: file.path)))
+        #expect(out.plan.body == .file(file))
         #expect(
             out.plan.headers.contains(
                 SendPlan.Header(name: "Content-Type", value: "application/octet-stream")))
     }
 
-    @Test("multipart fails with a message that says where it went")
-    func multipartNotYet() {
-        #expect(throws: SendPlanBuilder.BuildError.self) {
+    /// A path that does not exist used to build a plan that failed later, inside the engine, as an
+    /// opaque URLSession error. Catching it in the builder is the difference between "there is no
+    /// file at /tmp/blob.bin" and "-1100".
+    @Test("a binary body pointing at nothing is rejected before the request is built")
+    func binaryBodyMissingFile() {
+        #expect(throws: SendPlanBuilder.BuildError.missingFile("/no/such/blob.bin")) {
             _ = try Self.build(
                 HTTPRequestSpec(
-                    method: .post,
-                    url: "{{baseUrl}}/upload",
-                    body: .multipart([MultipartPart(name: "f", content: .text("x"))])
-                ))
+                    method: .post, url: "{{baseUrl}}/upload",
+                    body: .binary(path: "/no/such/blob.bin")))
         }
+    }
+
+    /// Was "multipart is not implemented yet" through Phase 6. `MultipartTests` covers the
+    /// assembly in detail; this only pins that the builder no longer refuses it.
+    @Test("multipart builds a body and a boundary-carrying content type")
+    func multipartBuilds() throws {
+        let out = try Self.build(
+            HTTPRequestSpec(
+                method: .post,
+                url: "{{baseUrl}}/upload",
+                body: .multipart([MultipartPart(name: "f", content: .text("x"))])
+            ))
+
+        #expect(out.plan.body != SendPlan.Body.none)
+        let contentType = try #require(
+            out.plan.headers.first {
+                $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame
+            }?.value)
+        #expect(contentType.hasPrefix("multipart/form-data; boundary="))
     }
 
     // MARK: - Body pruning

@@ -3,6 +3,7 @@ import Foundation
 import NibCore
 import NibHTTP
 import NibInterchange
+import NibStore
 import Observation
 
 /// The root store.
@@ -22,15 +23,73 @@ public final class AppModel {
     /// Whether the environment editor is showing.
     public var isEnvironmentEditorPresented = false
 
+    /// Past responses for the selected request, newest first.
+    public private(set) var history: [HistoryStore.Entry] = []
+
+    private let historyStore: HistoryStore?
+
     public init() {
         let engine = HTTPEngine()
         self.engine = engine
         importCoordinator = ImportCoordinator(collectionModel: collectionModel)
+        // Optional rather than fatal: a machine where Application Support cannot be created still
+        // gets a working API client, just without history.
+        historyStore = try? HistoryStore()
         session = RequestSession(
             spec: HTTPRequestSpec(method: .get, url: ""),
             scope: VariableScope(),
             engine: engine
         )
+        session.onFinished = { [weak self] result, plan in
+            self?.recordInHistory(result, plan: plan)
+        }
+    }
+
+    // MARK: - History
+
+    /// File a completed response against the request that produced it.
+    ///
+    /// Only for saved requests. An unsaved scratch request has no stable id, so there would be
+    /// nothing to file it under and nothing to prune it with later.
+    private func recordInHistory(_ result: SendEvent.Result, plan: SendPlan) {
+        guard let historyStore, let requestID = collectionModel.selectedRequestID,
+            let response = session.response
+        else { return }
+
+        let preview = String(response.bodyText.prefix(HistoryStore.bodyPreviewLimit))
+        let entry = HistoryStore.Entry(
+            id: NodeID.generate().rawValue,
+            date: Date(),
+            method: plan.method.rawValue,
+            url: plan.url.absoluteString,
+            status: result.head.status,
+            durationMilliseconds: Double(result.timing.total.components.seconds) * 1000
+                + Double(result.timing.total.components.attoseconds) / 1e15,
+            byteCount: response.byteCount,
+            bodyPreview: preview,
+            isBodyTruncated: preview.count < response.bodyText.count || response.isTruncated)
+
+        Task { [weak self] in
+            await historyStore.record(entry, forRequest: requestID)
+            await self?.reloadHistory()
+        }
+    }
+
+    public func reloadHistory() async {
+        guard let historyStore, let requestID = collectionModel.selectedRequestID else {
+            history = []
+            return
+        }
+        history = await historyStore.entries(forRequest: requestID)
+    }
+
+    /// Drop history belonging to requests that have been deleted.
+    ///
+    /// Runs after a collection loads rather than at delete time, so it also cleans up after a
+    /// request removed in Finder or on another machine.
+    public func pruneHistory() async {
+        guard let historyStore, let collection = collectionModel.collection else { return }
+        await historyStore.prune(keeping: Set(collection.allRequests.map(\.request.id)))
     }
 
     // MARK: - Collection
@@ -55,6 +114,7 @@ public final class AppModel {
         loadedRequestID = request.id
         session.replace(with: request.spec)
         refreshScope()
+        Task { await reloadHistory() }
     }
 
     /// Re-resolve the current request against the collection as it stands now.

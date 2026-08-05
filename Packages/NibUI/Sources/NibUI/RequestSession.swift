@@ -23,6 +23,16 @@ public final class RequestSession: Identifiable {
     /// deviations, an insecure TLS override. Never silently discarded.
     public private(set) var notes: [String] = []
     public private(set) var unresolved: [VariableResolver.Unresolved] = []
+    /// The structured failure behind `state == .failed`.
+    ///
+    /// Kept alongside the message rather than folded into it, because one failure needs an action
+    /// attached: a TLS rejection offers "retry without verification", and that offer must appear
+    /// only for an actual certificate problem — not for a typo in the hostname.
+    public private(set) var failure: SendEvent.Failure?
+
+    /// Called after every completed response so the caller can file it in history. Set by
+    /// `AppModel`; the session itself has no business knowing where Application Support is.
+    public var onFinished: ((SendEvent.Result, SendPlan) -> Void)?
 
     public enum State: Equatable {
         case idle
@@ -121,6 +131,7 @@ public final class RequestSession: Identifiable {
         response = nil
         notes = []
         unresolved = []
+        failure = nil
 
         let built: SendPlanBuilder.Output
         do {
@@ -173,7 +184,19 @@ public final class RequestSession: Identifiable {
         self.spec = spec
         response = nil
         unresolved = []
+        failure = nil
         notes = importNotes
+    }
+
+    /// Turn off certificate verification for this request and send again.
+    ///
+    /// Deliberately one click and deliberately per-request. A self-signed certificate on a staging
+    /// box is the single most common reason a request fails here, and `-1202` with no way forward
+    /// is a dead end — but a global "never verify" toggle is how someone ends up shipping with it
+    /// off. The setting is saved with the request, so it stays visible in the diff.
+    public func retryWithoutTLSVerification() {
+        spec.settings.verifyTLS = false
+        send()
     }
 
     private func apply(
@@ -197,8 +220,10 @@ public final class RequestSession: Identifiable {
             notes.append(contentsOf: result.fidelityNotes)
             // Parsing and file I/O happen off the main actor; only the assignment is here.
             response = await ResponseViewModel.make(result: result, requestURL: plan.url)
+            onFinished?(result, plan)
 
         case .failed(let failure):
+            self.failure = failure
             state = .failed(failure.message)
         }
     }
@@ -238,6 +263,8 @@ public final class RequestSession: Identifiable {
             return "That URL could not be parsed: \(value)"
         case .unsupportedBody(let reason):
             return reason
+        case .missingFile(let path):
+            return "There is no file at \(path)."
         }
     }
 }

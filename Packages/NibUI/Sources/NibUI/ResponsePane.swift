@@ -1,4 +1,5 @@
 import NibCore
+import NibStore
 import SwiftUI
 
 /// The always-visible top strip: status, timing, size, protocol, tabs, copy.
@@ -30,8 +31,10 @@ struct ResponseChrome: View {
             StatusSummary(session: session)
             Spacer()
 
-            if let response = session.response, !session.state.isFailed {
-                if state.tab == .body, response.isPrettyPrinted {
+            if session.response != nil || !model.history.isEmpty {
+                if let response = session.response, state.tab == .body, response.isPrettyPrinted,
+                    !session.state.isFailed
+                {
                     // Only offered when there is a difference to see. On a non-JSON body Pretty and
                     // Raw are the same text, and a toggle that does nothing is worse than no toggle.
                     Picker("", selection: $state.showsRaw) {
@@ -50,12 +53,14 @@ struct ResponseChrome: View {
                 .labelsHidden()
                 .frame(width: 260)
 
-                Button("Copy response body", systemImage: "doc.on.doc") {
-                    copyBody(response)
+                if let response = session.response {
+                    Button("Copy response body", systemImage: "doc.on.doc") {
+                        copyBody(response)
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.borderless)
+                    .help("Copy the body as it was received")
                 }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .help("Copy the body as it was received")
             }
         }
         .font(.callout)
@@ -160,13 +165,16 @@ struct ResponseSecondaryContent: View {
             // dies the status-bar version is easy to miss entirely -- it reads as "nothing
             // happened", which is the worst possible feedback for a tool whose only job is to make
             // one request and tell you what came back.
-            FailureView(message: message)
+            FailureView(message: message, failure: session.failure, session: session)
+        } else if state.tab == .history {
+            HistoryList(model: model)
         } else if let response = session.response {
             switch state.tab {
             case .body: Color.clear  // drawn by `ResponseBodyView`, in AppKit
             case .headers: HeaderList(headers: response.headers)
             case .cookies: CookieList(cookies: response.cookies)
             case .timing: TimingWaterfall(timing: response.timing, hops: response.hops)
+            case .history: HistoryList(model: model)
             }
         } else {
             Color.clear
@@ -199,227 +207,52 @@ private struct TruncationNotice: View {
 
 private struct FailureView: View {
     let message: String
+    let failure: SendEvent.Failure?
+    var session: RequestSession
+
+    private var tlsReason: String? {
+        if case .tlsUntrusted(let reason) = failure?.kind { return reason }
+        return nil
+    }
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 28))
-                .foregroundStyle(.orange)
-            Text("The request failed")
+            Image(
+                systemName: tlsReason == nil
+                    ? "exclamationmark.triangle.fill" : "lock.trianglebadge.exclamationmark"
+            )
+            .font(.system(size: 28))
+            .foregroundStyle(.orange)
+            Text(tlsReason == nil ? "The request failed" : "The server's certificate was rejected")
                 .font(.headline)
-            Text(message)
+            Text(tlsReason ?? message)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .textSelection(.enabled)
+                .frame(maxWidth: 460)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if tlsReason != nil {
+                // The reason this panel exists. `-1202` with nothing to click is where people give
+                // up on a client and go back to curl -k.
+                Button("Retry without verifying the certificate") {
+                    session.retryWithoutTLSVerification()
+                }
+                .buttonStyle(.borderedProminent)
+
+                Text(
+                    "Turns verification off for this request only, and saves it with the request "
+                        + "so it stays visible in your diff."
+                )
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
                 .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(24)
-    }
-}
-
-private struct HeaderList: View {
-    let headers: [SendPlan.Header]
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text(header.name)
-                            .fontWeight(.medium)
-                            .frame(width: 220, alignment: .leading)
-                        Text(header.value)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                    .font(.system(.callout, design: .monospaced))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    Divider()
-                }
-            }
-        }
-    }
-}
-
-private struct CookieList: View {
-    let cookies: [ResponseViewModel.Cookie]
-
-    var body: some View {
-        if cookies.isEmpty {
-            VStack(spacing: 6) {
-                Text("No cookies").font(.headline)
-                Text("Nothing in this response set one.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(cookies, id: \.self) { cookie in
-                        CookieRow(cookie: cookie)
-                        Divider()
-                    }
-                }
-            }
-        }
-    }
-}
-
-private struct CookieRow: View {
-    let cookie: ResponseViewModel.Cookie
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
-                Text(cookie.name).fontWeight(.medium)
-                Text(cookie.value)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-            }
-            HStack(spacing: 6) {
-                ForEach(attributes, id: \.self) { attribute in
-                    Text(attribute)
-                        .font(.caption)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
-                }
-            }
-
-            if cookie.isDiscardedAsInsecure {
-                Label(
-                    "Marked Secure but sent over plain HTTP — a browser would discard it.",
-                    systemImage: "exclamationmark.triangle"
-                )
-                .font(.caption)
-                .foregroundStyle(.orange)
-            }
-        }
-        .font(.system(.callout, design: .monospaced))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-    }
-
-    /// Flags first, because "is this Secure and HttpOnly" is the question people open this tab to
-    /// answer. Session cookies say so rather than showing a blank expiry.
-    private var attributes: [String] {
-        var result = [cookie.domain, cookie.path]
-        if cookie.isSecure { result.append("Secure") }
-
-        if cookie.isHTTPOnly { result.append("HttpOnly") }
-        if let sameSite = cookie.sameSite { result.append("SameSite=\(sameSite)") }
-        result.append(
-            cookie.expires.map { "Expires \($0.formatted(date: .abbreviated, time: .shortened))" }
-                ?? "Session")
-        return result
-    }
-}
-
-// MARK: - Timing
-
-/// A stacked bar of the request phases, from real `URLSessionTaskMetrics`.
-///
-/// DNS, connect and TLS are legitimately absent on loopback or a reused pooled connection — that is
-/// information, not missing data, so those rows are simply not drawn.
-struct TimingWaterfall: View {
-    let timing: SendEvent.Timing
-    let hops: [SendEvent.Hop]
-
-    private var phases: [(String, Duration)] {
-        [
-            ("DNS", timing.dns),
-            ("Connect", timing.connect),
-            ("TLS", timing.tls),
-            ("Request", timing.request),
-            ("Waiting", timing.timeToFirstByte),
-            ("Download", timing.download),
-        ].compactMap { name, value in value.map { (name, $0) } }
-    }
-
-    private func milliseconds(_ duration: Duration) -> Double {
-        Double(duration.components.seconds) * 1000
-            + Double(duration.components.attoseconds) / 1e15
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                let total = max(milliseconds(timing.total), 0.001)
-
-                ForEach(phases, id: \.0) { name, duration in
-                    PhaseBar(
-                        name: name,
-                        milliseconds: milliseconds(duration),
-                        fraction: milliseconds(duration) / total)
-                }
-
-                if phases.isEmpty {
-                    Text("No phase breakdown: the connection was reused or served from loopback.")
-                        .foregroundStyle(.secondary)
-                        .font(.callout)
-                }
-
-                Divider()
-                HStack(spacing: 8) {
-                    Text("Total").frame(width: 90, alignment: .trailing).fontWeight(.semibold)
-                    Text(String(format: "%.1f ms", milliseconds(timing.total)))
-                }
-                .font(.system(.callout, design: .monospaced))
-
-                if !hops.isEmpty {
-                    Divider()
-                    Text("Redirects").fontWeight(.semibold)
-                    ForEach(Array(hops.enumerated()), id: \.offset) { _, hop in
-                        Text("\(hop.status)  \(hop.from.absoluteString) → \(hop.to.absoluteString)")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    }
-                }
-            }
-            .padding(12)
-        }
-    }
-}
-
-/// One phase row.
-///
-/// Uses a proportional frame rather than a `GeometryReader` per row. A `GeometryReader` in a stack
-/// row forces a layout pass to read its own size and then a second one to place the child, six
-/// times over — for a bar whose width is a fraction of the container, `containerRelativeFrame`
-/// says the same thing in one pass.
-private struct PhaseBar: View {
-    let name: String
-    let milliseconds: Double
-    let fraction: Double
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(name)
-                .frame(width: 90, alignment: .trailing)
-                .foregroundStyle(.secondary)
-
-            RoundedRectangle(cornerRadius: 3)
-                .fill(.tint)
-                .frame(height: 12)
-                .containerRelativeFrame(.horizontal, alignment: .leading) { width, _ in
-                    max(2, width * 0.6 * fraction)
-                }
-
-            Spacer(minLength: 0)
-
-            Text(String(format: "%.1f ms", milliseconds))
-                .frame(width: 80, alignment: .leading)
-                .foregroundStyle(.secondary)
-        }
-        .font(.system(.callout, design: .monospaced))
     }
 }

@@ -83,6 +83,7 @@ public final class ResponsePaneController: NSViewController {
             _ = model.session.state
             _ = state.tab
             _ = state.showsRaw
+            _ = model.history
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -204,6 +205,7 @@ enum ResponseTab: String, CaseIterable, Identifiable {
     case headers = "Headers"
     case cookies = "Cookies"
     case timing = "Timing"
+    case history = "History"
 
     var id: String { rawValue }
 }

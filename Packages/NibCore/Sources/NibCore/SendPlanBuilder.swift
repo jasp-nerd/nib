@@ -28,6 +28,17 @@ public enum SendPlanBuilder {
         case emptyURL
         case invalidURL(String)
         case unsupportedBody(String)
+        /// A multipart or binary body names a file that is not there.
+        case missingFile(String)
+    }
+
+    /// A body plus the `Content-Type` that describes it.
+    ///
+    /// Paired because multipart cannot separate them: the header carries the boundary, which is
+    /// only known once the body has been assembled.
+    struct BuiltBody {
+        var body: SendPlan.Body
+        var contentType: String?
     }
 
     public static func build(
@@ -73,7 +84,8 @@ public enum SendPlanBuilder {
 
         // MARK: Body
 
-        var body = try buildBody(spec.body, resolve: resolve)
+        let built = try buildBody(spec.body, resolve: resolve)
+        var body = built.body
 
         // GET-with-body is legal but surprising, so it is opt-in. Dropping it silently would be
         // worse than either alternative, hence the note.
@@ -85,7 +97,7 @@ public enum SendPlanBuilder {
             )
         }
 
-        if let contentType = defaultContentType(for: spec.body),
+        if let contentType = built.contentType,
             body != .none,
             !headers.contains(where: {
                 $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame
@@ -249,6 +261,18 @@ public enum SendPlanBuilder {
     private static func buildBody(
         _ spec: BodySpec,
         resolve: (String) -> String
+    ) throws -> BuiltBody {
+        if case .multipart(let parts) = spec {
+            return try buildMultipart(parts, resolve: resolve)
+        }
+        return BuiltBody(
+            body: try bodyBytes(spec, resolve: resolve),
+            contentType: defaultContentType(for: spec))
+    }
+
+    private static func bodyBytes(
+        _ spec: BodySpec,
+        resolve: (String) -> String
     ) throws -> SendPlan.Body {
         switch spec {
         case .none:
@@ -292,15 +316,16 @@ public enum SendPlanBuilder {
         case .binary(let path):
             let resolved = resolve(path)
             guard !resolved.isEmpty else { return .none }
+            guard FileManager.default.fileExists(atPath: resolved) else {
+                throw BuildError.missingFile(resolved)
+            }
             // A file URL, not bytes: the engine streams it so a large upload never counts
             // against the app's memory budget.
             return .file(URL(fileURLWithPath: resolved))
 
         case .multipart:
-            throw BuildError.unsupportedBody(
-                "Multipart bodies land in Phase 7. The body is preserved in your files and will "
-                    + "round-trip untouched until then."
-            )
+            // Unreachable: `buildBody` routes multipart before it gets here.
+            return .none
         }
     }
 
@@ -311,7 +336,7 @@ public enum SendPlanBuilder {
         case .urlEncoded: "application/x-www-form-urlencoded"
         case .graphQL: "application/json"
         case .binary: "application/octet-stream"
-        case .multipart: nil  // needs the generated boundary; Phase 7
+        case .multipart: nil  // carried on `BuiltBody`, because it includes the boundary
         }
     }
 
