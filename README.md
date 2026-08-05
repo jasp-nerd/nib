@@ -6,13 +6,9 @@
 
 <p align="center">A small, native API client for macOS.</p>
 
-<!--
-Three badges, no more. Two of them still need filling in before this goes public:
-the Discord invite code, and the contact address. They're left blank rather than
-guessed, since a dead invite link is worse than no badge.
--->
+<!-- The contact address is still a placeholder; fill it in or drop that badge. -->
 <p align="center">
-  <a href="https://discord.gg/REPLACE-ME"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=flat"></a>
+  <a href="https://discord.gg/AqNR6p4zrq"><img alt="Discord" src="https://img.shields.io/badge/Discord-join-5865F2?style=flat"></a>
   <a href="mailto:REPLACE-ME?subject=Nib"><img alt="Let's talk" src="https://img.shields.io/badge/Let's%20talk-111111?style=flat"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-AGPL--3.0-3DA639?style=flat"></a>
 </p>
@@ -20,6 +16,8 @@ guessed, since a dead invite link is worse than no badge.
 <p align="center">
   <img src="docs/screenshot.png" width="720" alt="Nib showing a collection, an environment picker, and a highlighted JSON response">
 </p>
+
+[nib.jaspnerd.dev](https://nib.jaspnerd.dev) · [Discord](https://discord.gg/AqNR6p4zrq)
 
 Nib is about 1.6 MB on disk and sits at roughly 30 MB of memory with a collection open. It's written in Swift against AppKit and SwiftUI, it has no third-party dependencies, and there's no account to create and nothing phoning home.
 
