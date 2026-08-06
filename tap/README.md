@@ -4,6 +4,12 @@ These two files belong in a separate repository, `jasp-nerd/homebrew-nib`, not i
 here so they are reviewed alongside the code that produces the artefacts they point at, and so the
 release workflow has something to `sed`.
 
+> [!NOTE]
+> The `version`, `url` and `sha256` lines in these copies are stale on purpose. `jasp-nerd/homebrew-nib`
+> is what Homebrew reads, and the release workflow rewrites all of them there after it has built and
+> uploaded the artefacts. Do not fix the placeholder checksums here expecting it to change an install;
+> check the live tap instead.
+
 ```sh
 brew trust --tap jasp-nerd/nib             # Homebrew 6 requires this for any third-party tap
 brew install --cask jasp-nerd/nib/nib      # the cask. This is the one to tell users about.

@@ -54,9 +54,9 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k runner build.keychain >/dev/null
           rm -f /tmp/nib.p12
 
-      # The version is declared in the tag, in Info.plist, on the website and in the tap. Only
-      # the cask is rewritten automatically, so the other three drift. Catch it here rather than
-      # shipping an app whose About box disagrees with the release it came from.
+      # The version is declared in the tag, in Info.plist, on the website and in the tap. The tap
+      # is rewritten automatically at the end of this workflow; the other two drift. Catch it here
+      # rather than shipping an app whose About box disagrees with the release it came from.
       - name: Check Info.plist matches the tag
         run: |
           PLIST=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" App/Info.plist)
@@ -132,12 +132,13 @@ jobs:
       # in the middle is a release process that ships a stale cask.
       # A deploy key rather than a personal access token: it can write to the tap repository and
       # to nothing else, which is the whole of the access this step needs.
-      - name: Bump the Homebrew cask
+      - name: Bump the Homebrew cask and formula
         env:
           DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
         run: |
           SHA=$(cut -d' ' -f1 sha256.txt)
           VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
 
           if [ -z "$DEPLOY_KEY" ]; then echo "no tap deploy key configured; skipping the cask bump"; exit 0; fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
@@ -150,6 +151,21 @@ jobs:
           cd "$RUNNER_TEMP/tap"
           sed -i '' "s/  version \".*\"/  version \"${VERSION}\"/" Casks/nib.rb
           sed -i '' "s/  sha256 \".*\"/  sha256 \"${SHA}\"/"       Casks/nib.rb
+
+          # The formula too, which an earlier version of this step did not touch. It went out with
+          # a placeholder checksum and stayed pinned to the first tag, so `brew install` without
+          # --cask failed on a checksum mismatch -- and that is the spelling `brew info` suggests.
+          # It is also the build-from-source route docs/signing.md offers as the way around
+          # Gatekeeper, so it was the one path that had to work and the one nobody re-ran.
+          #
+          # The checksum is of GitHub's generated source tarball, which only exists once the
+          # release above has created the tag.
+          TARBALL="https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.tar.gz"
+          SOURCE_SHA=$(curl -fsSL "$TARBALL" | shasum -a 256 | cut -d' ' -f1)
+          [ -n "$SOURCE_SHA" ] || { echo "::error::could not checksum $TARBALL"; exit 1; }
+          sed -i '' "s|  url \"https://github.com/.*/archive/refs/tags/.*\"|  url \"${TARBALL}\"|" \
+              Formula/nib.rb
+          sed -i '' "s/  sha256 \".*\"/  sha256 \"${SOURCE_SHA}\"/" Formula/nib.rb
 
           git config user.name  "nib-release"
           git config user.email "jasper.meijerink@outlook.com"
