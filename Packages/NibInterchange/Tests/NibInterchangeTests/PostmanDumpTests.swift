@@ -161,4 +161,60 @@ struct PostmanDumpTests {
         let second = try PostmanDumpImporter.importDump(at: archive).collections.map(\.name)
         #expect(first == second)
     }
+
+    // MARK: - Already unzipped
+
+    /// The export arrives by email as a zip, and a Mac set to open safe downloads expands it before
+    /// the user ever sees the archive. Handing Nib that folder has to work: refusing it stops the
+    /// migration at step one for everyone with the default Safari setting.
+    @Test("an export that has already been unzipped imports from the folder")
+    func importsExpandedFolder() throws {
+        let archive = try makeDump(
+            collections: [
+                "typical.postman_collection.json",
+                "legacy-v2.postman_collection.json",
+            ],
+            environments: ["staging.postman_environment.json"])
+        let staging = archive.deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: staging) }
+
+        let root = staging.appendingPathComponent("Backup.2026-08-05", isDirectory: true)
+        let result = try PostmanDumpImporter.importExpanded(at: root)
+
+        #expect(result.collections.map(\.name).sorted() == ["Acme API", "Legacy"])
+        #expect(result.environments.map(\.name) == ["Staging"])
+    }
+
+    /// The zip and the folder are the same content, so they must produce the same result. If they
+    /// ever diverge it will be because one path grew a fix the other did not.
+    @Test("the folder and the zip it came from import identically")
+    func expandedMatchesArchive() throws {
+        let archive = try makeDump(
+            collections: ["typical.postman_collection.json"],
+            environments: ["staging.postman_environment.json"])
+        let staging = archive.deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: staging) }
+
+        let fromArchive = try PostmanDumpImporter.importDump(at: archive)
+        let fromFolder = try PostmanDumpImporter.importExpanded(
+            at: staging.appendingPathComponent("Backup.2026-08-05", isDirectory: true))
+
+        #expect(fromArchive.collections.map(\.name) == fromFolder.collections.map(\.name))
+        #expect(fromArchive.environments.map(\.name) == fromFolder.environments.map(\.name))
+        #expect(
+            fromArchive.collections.map(\.allRequests.count)
+                == fromFolder.collections.map(\.allRequests.count))
+    }
+
+    @Test("a folder with nothing importable in it says so rather than throwing something opaque")
+    func emptyFolderIsReadable() throws {
+        let empty = FileManager.default.temporaryDirectory
+            .appendingPathComponent("nib-empty-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: empty) }
+
+        #expect(throws: ImportError.self) {
+            _ = try PostmanDumpImporter.importExpanded(at: empty)
+        }
+    }
 }

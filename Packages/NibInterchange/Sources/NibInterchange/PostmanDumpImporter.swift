@@ -34,6 +34,17 @@ public enum PostmanDumpImporter {
         defer { try? FileManager.default.removeItem(at: staging) }
 
         try expand(url, into: staging)
+        return try importExpanded(at: staging)
+    }
+
+    /// Import a dump that is already a folder on disk.
+    ///
+    /// Unzipping is the only thing `importDump` does that this does not, and plenty of people unzip
+    /// the export before they get to us — it arrives by email, and double-clicking a zip in Finder
+    /// expands it in place. Handing that folder to Nib has to work, or the migration story stops at
+    /// the first step for everyone whose Mac unarchives downloads automatically.
+    public static func importExpanded(at directory: URL) throws -> Imported {
+        let staging = directory
 
         var collections: [NibCore.Collection] = []
         var environments: [NibCore.Environment] = []
@@ -97,7 +108,7 @@ public enum PostmanDumpImporter {
 
         guard !collections.isEmpty || !environments.isEmpty else {
             throw ImportError.malformed(
-                reason: "No Postman collections or environments were found in that archive.")
+                reason: "No Postman collections or environments were found in that folder.")
         }
 
         return Imported(

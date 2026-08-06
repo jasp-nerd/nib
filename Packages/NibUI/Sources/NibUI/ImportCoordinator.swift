@@ -37,17 +37,35 @@ public final class ImportCoordinator {
         failure = nil
     }
 
+    /// Explain a drop that contained nothing we could read.
+    public func reportUnsupportedDrop(_ names: [String]) {
+        guard !names.isEmpty else { return }
+        let subject =
+            names.count == 1
+            ? "“\(names[0])” is not something Nib can import."
+            : "Those \(names.count) files are not something Nib can import."
+        failure =
+            subject + "\n\nDrop a Postman collection or environment (.json), an “Export Data” "
+            + "archive (.zip), or the folder you unzipped one to."
+    }
+
     // MARK: - Entry points
 
     public func promptToImport() async {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
-        panel.canChooseDirectories = false
+        // Folders are selectable for the same reason `canImport` accepts them: an unzipped export is
+        // a folder, and greying it out is indistinguishable from the app being broken.
+        panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
         panel.prompt = "Import"
         panel.message =
-            "Choose a Postman collection, environment, or a full “Export Data” archive (.zip)."
-        panel.allowedContentTypes = [.json, .zip]
+            "Choose a Postman collection, an environment, or an “Export Data” archive — "
+            + "either the .zip or the folder you unzipped it to."
+        // No `allowedContentTypes`: it greys out everything it does not list, and a greyed-out file
+        // gives the user nothing to act on. Sniffing the bytes and saying what was wrong is better
+        // than a panel that silently refuses to let them click.
+        panel.treatsFilePackagesAsDirectories = false
 
         guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
         await importFiles(panel.urls)
@@ -110,9 +128,18 @@ public final class ImportCoordinator {
     /// Whether a dragged file is something we would try to import.
     ///
     /// Used to decide whether to accept the drag at all, so the cursor tells the truth before the drop.
+    ///
+    /// Folders count. A Postman "Export Data" archive arrives as a zip, and a Mac set to open safe
+    /// downloads unzips it before the user ever sees it — refusing the folder meant the most common
+    /// shape of the most important import silently did nothing.
     public static func canImport(_ url: URL) -> Bool {
+        if isDirectory(url) { return true }
         let extensionName = url.pathExtension.lowercased()
         return extensionName == "json" || extensionName == "zip"
+    }
+
+    static func isDirectory(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
     }
 
     // MARK: - Reading
@@ -126,6 +153,14 @@ public final class ImportCoordinator {
     /// Sniff and dispatch. The order matters: a zip cannot be sniffed as JSON, and an environment must
     /// be checked against the collection sniffer first so the two never overlap.
     private static func read(_ url: URL) throws -> Outcome {
+        if isDirectory(url) {
+            let imported = try PostmanDumpImporter.importExpanded(at: url)
+            return Outcome(
+                collections: imported.collections,
+                environments: imported.environments,
+                diagnostics: imported.diagnostics)
+        }
+
         if PostmanDumpImporter.looksLikePostmanDump(url) {
             let imported = try PostmanDumpImporter.importDump(at: url)
             return Outcome(

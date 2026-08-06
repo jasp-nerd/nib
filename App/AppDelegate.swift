@@ -16,6 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Not `private`: `SelfTest.swift` extends this type and needs the window.
     var mainWindowController: MainWindowController?
 
+    /// A folder Finder handed us before the window existed. See `application(_:open:)`.
+    private var pendingOpen: URL?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainMenu.install(into: NSApplication.shared, target: self)
 
@@ -48,12 +51,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func deferredStartup() {
         // Phase 3+ will reopen the last collection folder here; Phase 6 warms the response
         // text view.
+        if let url = pendingOpen, let model {
+            pendingOpen = nil
+            open(url, in: model)
+        }
+
         runSelfTestIfRequested()
         runCollectionSelfTestIfRequested()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Open a collection folder handed to us by Finder, `open`, or a drop on the Dock icon.
+    ///
+    /// Without this, AppKit falls back to its own document machinery and puts up "Nib cannot open
+    /// files in the “folder” format" — with Nib's icon on it, so it reads as the app being broken.
+    /// That is a bad way to greet someone who just did the most natural thing available to them:
+    /// the whole premise is that a collection *is* a folder, so of course people double-click one.
+    ///
+    /// Importable files are routed to the importer rather than refused, so dropping a Postman
+    /// export on the Dock icon does what dropping it on the window does.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+
+        // On a cold launch AppKit delivers this *before* `applicationDidFinishLaunching`, so there
+        // is no window and no model yet. Hold the URL and open it once there is one; dropping it
+        // here is why double-clicking a collection folder opened an empty window.
+        guard let model else {
+            pendingOpen = url
+            return
+        }
+        open(url, in: model)
+    }
+
+    private func open(_ url: URL, in model: AppModel) {
+        Task {
+            var isDirectory: ObjCBool = false
+            let exists = FileManager.default.fileExists(
+                atPath: url.path, isDirectory: &isDirectory)
+            guard exists else { return }
+
+            // A folder could be either a collection or an unzipped Postman export. Only one of
+            // them has a collection.json in it, so there is no need to guess.
+            let isCollection = FileManager.default.fileExists(
+                atPath: url.appendingPathComponent("collection.json").path)
+
+            if isDirectory.boolValue && (isCollection || !model.collectionModel.isOpen) {
+                await model.collectionModel.open(url)
+            } else {
+                await model.importCoordinator.importFiles([url])
+            }
+        }
     }
 
     // MARK: - Menu actions

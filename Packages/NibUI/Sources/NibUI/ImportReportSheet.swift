@@ -216,14 +216,24 @@ struct ImportDropTarget: ViewModifier {
 
     private func handle(_ providers: [NSItemProvider]) async {
         var urls: [URL] = []
+        var rejected: [String] = []
 
         for provider in providers {
             guard let url = await Self.loadURL(from: provider) else { continue }
-            guard ImportCoordinator.canImport(url) else { continue }
-            urls.append(url)
+            if ImportCoordinator.canImport(url) {
+                urls.append(url)
+            } else {
+                rejected.append(url.lastPathComponent)
+            }
         }
 
-        guard !urls.isEmpty else { return }
+        // Say so. This used to return silently, which meant the window lit up with "Drop to import",
+        // accepted the drop, and then did absolutely nothing — on the one gesture the empty state
+        // tells every new user to perform. A drop that cannot work has to explain itself.
+        guard !urls.isEmpty else {
+            coordinator.reportUnsupportedDrop(rejected)
+            return
+        }
         await coordinator.importFiles(urls)
     }
 
