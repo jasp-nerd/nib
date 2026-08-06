@@ -176,12 +176,12 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/hello",
+              "raw": "{{baseUrl}}/ping",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "hello"
+                "ping"
               ]
             }
           }
