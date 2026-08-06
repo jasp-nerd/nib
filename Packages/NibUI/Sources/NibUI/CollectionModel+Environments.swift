@@ -47,6 +47,15 @@ extension CollectionModel {
         activeEnvironmentID =
             environments.first { $0.id.rawValue == remembered }?.id
             ?? environments.first?.id
+
+        // Re-resolve, exactly as `setActiveEnvironment` does. Picking the environment during load
+        // happens *after* the selection has already computed its scope, so without this the first
+        // request you look at resolves against nothing: the picker says "Local", the badge says
+        // two variables, and the URL bar still says {{baseUrl}} is not defined. Sending then fails
+        // with "That URL could not be parsed" until you switch to another request and back.
+        if activeEnvironmentID != nil {
+            environmentsRevision += 1
+        }
     }
 
     static var activeEnvironmentKey: String { "ActiveEnvironment" }
